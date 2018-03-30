@@ -206,6 +206,97 @@ void ReadInputSequences(const std::vector<std::string> & genomes, std::vector<st
 	}
 }
 
+std::ofstream output_bin;
+
+class BinaryGenerator
+{
+public:
+  //static sdsl::int_vector<2> sLen;
+  //static sdsl::int_vector<2> sSeq;
+  	static int sLenCount;
+	// static sdsl::osfstream *sSeqOut;
+	void Header(std::ostream & out) const
+	{
+		//out << "H\tVN:Z:1.0" << std::endl;
+	}
+
+	void ListInputSequences(const std::vector<std::string> & seq, std::map<std::string, std::string> & fileName, std::ostream & out) const
+	{
+		/*for (const auto & it : seq)
+		{
+			out << "S\t"
+				<< it
+				<< "\t*\tUR:Z:"
+				<< fileName[it]
+				<< std::endl;
+		}*/
+	}
+
+	void Segment(int64_t segmentId, uint64_t segmentSize, const std::string & body, std::ostream & out) const
+	{
+		sPack(Abs(segmentId), body, output_bin);
+		/*out << "S\t"
+			<< Abs(segmentId) << "\t"
+			<< body << std::endl;
+		*/
+	  	/*
+		//sdsl::int_vector<2> sSeq;
+		//sdsl::int_vector<2> sLen;
+		sPack(sSeq, sLen, body);
+		sLenCount += sLen.size();
+		// sdsl::osfstream out_tmp = *sSeqOut;
+		//std::cout << sSeq.size() << std::endl;
+		std::cout << sLen.size() << std::endl;
+		for (int i = 0; i< sSeq.size(); i++)
+		  std::cout << sSeq[i];
+		std::cout << std::endl;
+		for (int i = 0; i< sLen.size(); i++)
+		  std::cout << sLen[i];
+		std::cout << std::endl;
+		//sdsl::append_to_file(sSeq, *sSeqOut);
+		//sdsl::append_to_file(sLen, *sLenOut);
+		*/
+	}
+
+	void Occurrence(int64_t segmentId, uint64_t segmentSize, const std::string & chrSegmentId, uint64_t chrSegmentSize, uint64_t begin, uint64_t end, uint64_t k, std::ostream & out) const
+	{
+		/*out << "C\t"
+			<< Abs(segmentId) << '\t'
+			<< Sign(segmentId) << '\t'
+			<< chrSegmentId << "\t+\t"
+			<< end << std::endl;
+		*/
+	}
+
+	void Edge(int64_t prevSegmentId, uint64_t prevSegmentSize, int64_t segmentId, uint64_t segmentSize, uint64_t k, std::ostream & out) const
+	{
+		/*out << "L\t"
+			<< Abs(prevSegmentId) << '\t'
+			<< Sign(prevSegmentId) << '\t'
+			<< Abs(segmentId) << '\t'
+			<< Sign(segmentId) << '\t'
+			<< k << 'M' << std::endl;
+		*/
+	}
+
+	void FlushPath(std::vector<int64_t> & currentPath, const std::string & seqId, size_t k, std::ostream & out) const
+	{
+		if (currentPath.size() > 0)
+		{
+			/*out << "P\t" << seqId << '\t';
+			for (auto it = currentPath.begin(); it != currentPath.end() - 1; ++it)
+			{
+				out << Abs(*it) << Sign(*it) << ",";
+			}
+
+			out << Abs(currentPath.back()) << Sign(currentPath.back()) << "\t*" << std::endl;
+			*/
+			pPack(currentPath, output_bin);
+			currentPath.clear();
+		}
+	}
+};
+
 class Gfa1Generator
 {
 public:
@@ -711,6 +802,7 @@ int my_main(int argc, char * argv[], std::string file_name, tbb::concurrent_queu
 	format.push_back("gfa1");
 	format.push_back("gfa2");
 	format.push_back("fasta");
+	format.push_back("binary");
 	std::stringstream formatString;
 	std::copy(format.begin(), format.begin(), std::ostream_iterator<std::string>(formatString, "|"));
 	try
@@ -791,6 +883,31 @@ int my_main(int argc, char * argv[], std::string file_name, tbb::concurrent_queu
 			}
 
 			GenerateFastaOutput(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue());
+		}
+		else if (outputFileFormat.getValue() == format[6])
+		{
+			if (!seqFileName.isSet())
+			{
+				throw TCLAP::ArgParseException("Required argument missing\n", "seqfilename");
+			}
+
+			std::string file_bin = file_name;
+
+			output_bin.open(file_bin, std::ios::out);
+			//GenerateGfaOutput(inputFileName.getValue(), seqFileName.getValue(), kvalue.getValue(), prefix.getValue(), BinaryGenerator());
+			GenerateGfaOutput(seqFileName.getValue(), kvalue.getValue(), prefix.getValue(), BinaryGenerator(), file_name, queue, done);
+			output_bin.close();	
+
+			/*
+			std::ifstream input;
+			input.open(file_bin, std::ios::in);
+			//unPack(input);
+			std::pair <bool, std::string> conv;
+			while(isNext(input)) {
+				conv = getNext(input);
+			}
+			input.close();
+			*/	
 		}
 	}
 	catch (TCLAP::ArgException &e)
