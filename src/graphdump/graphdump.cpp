@@ -20,6 +20,8 @@
 #include <streamfastaparser.h>
 #include <junctionapi/junctionapi.h>
 
+#include "bin_conv.hpp"
+
 
 bool CompareJunctionsById(const TwoPaCo::JunctionPosition & a, const TwoPaCo::JunctionPosition & b)
 {
