@@ -50,7 +50,9 @@ namespace TwoPaCo
 		size_t threads,
 		const std::string & tmpFileName,
 		const std::string & outFileName,
-		std::ostream & logStream);
+		std::ostream & logStream,
+		tbb::concurrent_queue<TwoPaCo::JunctionPosition> * queue,
+		std::atomic<bool> * done);
 
 	template<size_t CAPACITY>
 	class VertexEnumeratorImpl : public VertexEnumerator
@@ -132,7 +134,8 @@ namespace TwoPaCo
 			size_t threads,
 			const std::string & tmpDirName,
 			const std::string & outFileNamePrefix,
-			std::ostream & logStream) :
+			std::ostream & logStream, tbb::concurrent_queue<TwoPaCo::JunctionPosition> * queue,
+			std::atomic<bool> * done) :
 			vertexSize_(vertexLength),
 			hashFunctionSeed_(hashFunctions, vertexLength, filterSize),
 			filterDumpFile_(tmpDirName + "/filter.bin")
@@ -398,7 +401,8 @@ namespace TwoPaCo
 						tmpDirName,
 						rounds,
 						error,
-						errorMutex);
+						errorMutex,
+						queue);
 
 					workerThread[i].reset(new tbb::tbb_thread(worker));
 				}
@@ -414,6 +418,9 @@ namespace TwoPaCo
 			{
 				throw std::runtime_error(*error);
 			}
+
+			// Update atomic variable done = true
+			(*done).store(true, std::memory_order_relaxed);
 
 			logStream << "True marks count: " << occurence << std::endl;
 			logStream << "Edges construction time: " << time(0) - mark << std::endl;
@@ -763,13 +770,15 @@ namespace TwoPaCo
 
 		static bool FlushEdgeResults(std::deque<EdgeResult> & result,
 			JunctionPositionWriter & writer,
-			std::atomic<uint64_t> & currentPiece)
+			std::atomic<uint64_t> & currentPiece,
+			tbb::concurrent_queue<TwoPaCo::JunctionPosition> *queue)
 		{
 			if (result.size() > 0 && result.front().pieceId == currentPiece)
 			{
 				for (auto junction : result.front().junction)
 				{
-					writer.WriteJunction(junction);
+					//writer.WriteJunction(junction);
+					(*queue).push(junction);
 				}
 
 				++currentPiece;
@@ -794,9 +803,10 @@ namespace TwoPaCo
 				const std::string & tmpDirectory,
 				size_t totalRounds,
 				std::unique_ptr<std::runtime_error> & error,
-				tbb::mutex & errorMutex) : vertexLength(vertexLength), taskQueue(taskQueue), bifStorage(bifStorage),
+				tbb::mutex & errorMutex, tbb::concurrent_queue<TwoPaCo::JunctionPosition> * queue) : vertexLength(vertexLength), taskQueue(taskQueue), bifStorage(bifStorage),
 				writer(writer), currentPiece(currentPiece), occurences(occurences), tmpDirectory(tmpDirectory),
-				error(error), errorMutex(errorMutex), currentStubVertexId(currentStubVertexId), currentStubVertexMutex(currentStubVertexMutex), totalRounds(totalRounds)
+				error(error), errorMutex(errorMutex), currentStubVertexId(currentStubVertexId), currentStubVertexMutex(currentStubVertexMutex), totalRounds(totalRounds),
+				queue(queue)
 			{
 
 			}							
@@ -848,7 +858,7 @@ namespace TwoPaCo
 								size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);
 								for (size_t pos = 1;; ++pos)
 								{
-									while (result.size() > 0 && FlushEdgeResults(result, writer, currentPiece));
+									while (result.size() > 0 && FlushEdgeResults(result, writer, currentPiece, queue));
 									int64_t bifId(INVALID_VERTEX);
 									assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 									if (definiteCount == vertexLength && candidateMask.GetBit(pos))
@@ -886,7 +896,7 @@ namespace TwoPaCo
 
 					while (result.size() > 0)
 					{
-						FlushEdgeResults(result, writer, currentPiece);
+						FlushEdgeResults(result, writer, currentPiece, queue);
 					}
 				}
 				catch (std::runtime_error & e)
@@ -910,6 +920,7 @@ namespace TwoPaCo
 			size_t totalRounds;
 			tbb::mutex & errorMutex;
 			tbb::mutex & currentStubVertexMutex;
+			tbb::concurrent_queue<TwoPaCo::JunctionPosition> * queue;
 		};		
 		
 		class FilterFillerWorker

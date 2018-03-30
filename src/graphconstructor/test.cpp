@@ -206,7 +206,10 @@ namespace TwoPaCo
 						for (size_t thr = threads.first; thr < threads.second; ++thr)
 						{
 							std::stringstream null;
-							std::unique_ptr<TwoPaCo::VertexEnumerator> vid = CreateEnumerator(fileName, k, filterBits, hf, r, thr, temporaryDir, temporaryEdge, null);
+							tbb::concurrent_queue<TwoPaCo::JunctionPosition> * queue;
+							std::atomic<bool> * done (false);
+							std::unique_ptr<TwoPaCo::VertexEnumerator> vid = CreateEnumerator(fileName, k, filterBits, hf, r, thr, temporaryDir,
+								 temporaryEdge, null, queue, done);
 							for (size_t i = 0; i < chrNumber; i++)
 							{
 								fastMarks[i].assign(chr[i].size(), false);
