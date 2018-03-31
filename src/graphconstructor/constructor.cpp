@@ -118,8 +118,9 @@ class ConsumerWorker
                 		const std::string vertexLength,
                 		const std::string gfaFileName,
                 		tbb::concurrent_queue<TwoPaCo::JunctionPosition> * queue,
-                		std::atomic<bool> * done) : fileName(fileName), vertexLength(vertexLength), gfaFileName(gfaFileName),
-                                queue(queue), done(done)
+                		std::atomic<bool> * done,
+				const std::string type_of_file) : fileName(fileName), vertexLength(vertexLength), gfaFileName(gfaFileName),
+                                queue(queue), done(done), type_of_file(type_of_file)
                         {
 
                         }
@@ -128,12 +129,12 @@ class ConsumerWorker
                         {
 
 				char* argv[7];
-                        	argv[0] = "graphdump";
-                        	argv[1] = "-f";
-                        	argv[2] = "gfa1";
-                        	argv[3] = "-k";
+                        	argv[0] = strcpy(new char[10], "graphdump");
+                        	argv[1] = strcpy(new char[3], "-f");
+                        	argv[2] = strcpy(new char[type_of_file.length() + 1], type_of_file.c_str());
+                        	argv[3] = strcpy(new char[3], "-k");
                         	argv[4] = strcpy(new char[vertexLength.length() + 1], vertexLength.c_str()); 
-                        	argv[5] = "-s";
+                        	argv[5] = strcpy(new char[3], "-s");
                         	argv[6] = strcpy(new char[fileName.length() + 1], fileName.c_str());
                         	run_graph_dump(7, argv, gfaFileName, queue, done);
                                 
@@ -145,6 +146,7 @@ class ConsumerWorker
                         const std::string gfaFileName;
                         tbb::concurrent_queue<TwoPaCo::JunctionPosition> * queue;
                         std::atomic<bool> * done;
+			const std::string type_of_file;
    };
 
 int main(int argc, char * argv[])
@@ -229,6 +231,14 @@ int main(int argc, char * argv[])
 			"file name",
 			cmd);
 
+		TCLAP::ValueArg<std::string> type_of_file("l",
+                        "type_of_file",
+                        "output type",
+                        false,
+                        "binary",
+                        "file name",
+                        cmd);
+
 		cmd.parse(argc, argv);		
 		using TwoPaCo::Range;
 		if (runTests.getValue())
@@ -240,7 +250,7 @@ int main(int argc, char * argv[])
 		tbb::concurrent_queue<TwoPaCo::JunctionPosition> queue;
                 std::atomic<bool> * done = new std::atomic<bool>(false);
 
-		std::cout << "Testing started --- > " << (*done).load(std::memory_order_relaxed) << std::endl;
+		//std::cout << "Testing started --- > " << (*done).load(std::memory_order_relaxed) << std::endl;
 
 		std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(2);
 		
@@ -259,7 +269,7 @@ int main(int argc, char * argv[])
 		workerThread[0].reset(new tbb::tbb_thread(producers));
 	
 
-		ConsumerWorker consumer(fileName.getValue()[0], std::to_string(kvalue.getValue()), gfa1.getValue(), &queue, done);
+		ConsumerWorker consumer(fileName.getValue()[0], std::to_string(kvalue.getValue()), gfa1.getValue(), &queue, done, type_of_file.getValue());
 
 		workerThread[1].reset(new tbb::tbb_thread(consumer));
                 
@@ -269,8 +279,8 @@ int main(int argc, char * argv[])
 		}
 		
 
-		std::cout << "Testing done --- > " << (*done).load(std::memory_order_relaxed) << std::endl;
-		std::cout << "Testing done size --- > " << queue.unsafe_size() << std::endl;
+		//std::cout << "Testing done --- > " << (*done).load(std::memory_order_relaxed) << std::endl;
+		//std::cout << "Testing done size --- > " << queue.unsafe_size() << std::endl;
 
 		/*
 		
