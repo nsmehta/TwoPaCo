@@ -562,6 +562,8 @@ namespace TwoPaCo
 				uint64_t high = bound.second;
 				std::vector<uint64_t> temp;
 				ConcurrentBitVector candidateMask(Task::TASK_SIZE);
+				ConcurrentBitVector juncTypeBitOne(Task::TASK_SIZE);
+				ConcurrentBitVector juncTypeBitTwo(Task::TASK_SIZE);
 				while (true)
 				{
 					Task task;
@@ -610,6 +612,15 @@ namespace TwoPaCo
 									{
 										++marksCount;
 										candidateMask.SetBitConcurrently(pos);
+                                        
+                                        if (inCount == 1 && outCount > 1 ) {
+                                            ; // type 1 = 00
+                                        } else if (inCount > 1 && outCount == 1) {
+                                            juncTypeBitTwo.SetBitConcurrently(pos); // type 2 = 01
+                                        } else {
+                                            juncTypeBitOne.SetBitConcurrently(pos); // type 3 = 10
+                                        }
+
 									}
 								}
 
@@ -629,6 +640,14 @@ namespace TwoPaCo
 							try
 							{
 								candidateMask.WriteToFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start, round));
+                                
+                                std::stringstream ss_1;
+                                ss_1 << tmpDirectory << "/" << "junT_1_" << task.seqId << "_" << task.start << "_" << round << ".tmp";
+								//juncTypeBitOne.WriteToFile(ss_1.str());
+
+                                std::stringstream ss_2;
+                                ss_1 << tmpDirectory << "/" << "junT_2_" << task.seqId << "_" << task.start << "_" << round << ".tmp";
+								//juncTypeBitTwo.WriteToFile(ss_2.str());
 							}
 							catch (std::runtime_error & err)
 							{
