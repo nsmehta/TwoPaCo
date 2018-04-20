@@ -385,6 +385,7 @@ namespace TwoPaCo
 			std::atomic<uint64_t> currentPiece;			
 			uint64_t currentStubVertexId = verticesCount + 42;
 			JunctionPositionWriter posWriter(outFileNamePrefix);
+            std::vector<std::vector<int64_t> > inList(100), outList(100);
 			occurence = currentPiece = 0;
 			{
 				std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
@@ -402,7 +403,8 @@ namespace TwoPaCo
 						rounds,
 						error,
 						errorMutex,
-						queue);
+						queue, 
+                        inList, outList);
 
 					workerThread[i].reset(new tbb::tbb_thread(worker));
 				}
@@ -562,7 +564,7 @@ namespace TwoPaCo
 				uint64_t high = bound.second;
 				std::vector<uint64_t> temp;
 				ConcurrentBitVector candidateMask(Task::TASK_SIZE);
-				ConcurrentBitVector juncTypeBitOne(Task::TASK_SIZE);
+                ConcurrentBitVector juncTypeBitOne(Task::TASK_SIZE);
 				ConcurrentBitVector juncTypeBitTwo(Task::TASK_SIZE);
 				while (true)
 				{
@@ -613,14 +615,15 @@ namespace TwoPaCo
 										++marksCount;
 										candidateMask.SetBitConcurrently(pos);
                                         
+                                                              
                                         if (inCount == 1 && outCount > 1 ) {
                                             ; // type 1 = 00
                                         } else if (inCount > 1 && outCount == 1) {
-                                            juncTypeBitTwo.SetBitConcurrently(pos); // type 2 = 01
+                                            if (pos != 1) juncTypeBitTwo.SetBitConcurrently(pos-1); // type 2 = 01
                                         } else {
-                                            juncTypeBitOne.SetBitConcurrently(pos); // type 3 = 10
+                                            juncTypeBitOne.SetBitConcurrently(pos+1); // type 3 = 10
                                         }
-
+                                        
 									}
 								}
 
@@ -640,14 +643,16 @@ namespace TwoPaCo
 							try
 							{
 								candidateMask.WriteToFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start, round));
-                                
+                               
+                                 
                                 std::stringstream ss_1;
                                 ss_1 << tmpDirectory << "/" << "junT_1_" << task.seqId << "_" << task.start << "_" << round << ".tmp";
-								//juncTypeBitOne.WriteToFile(ss_1.str());
+								juncTypeBitOne.WriteToFile(ss_1.str());
 
                                 std::stringstream ss_2;
-                                ss_1 << tmpDirectory << "/" << "junT_2_" << task.seqId << "_" << task.start << "_" << round << ".tmp";
-								//juncTypeBitTwo.WriteToFile(ss_2.str());
+                                ss_2 << tmpDirectory << "/" << "junT_2_" << task.seqId << "_" << task.start << "_" << round << ".tmp";
+								juncTypeBitTwo.WriteToFile(ss_2.str());
+                                
 							}
 							catch (std::runtime_error & err)
 							{
@@ -738,6 +743,7 @@ namespace TwoPaCo
 										posExtend,
 										posPrev,
 										isBifurcation);
+                                    now.set_loc_pos(pos);
 									size_t inUnknownCount = now.Prev() == 'N' ? 1 : 0;
 									size_t outUnknownCount = now.Next() == 'N' ? 1 : 0;
 									auto ret = occurenceSet.insert(now);
@@ -790,10 +796,34 @@ namespace TwoPaCo
 		static bool FlushEdgeResults(std::deque<EdgeResult> & result,
 			JunctionPositionWriter & writer,
 			std::atomic<uint64_t> & currentPiece,
-			tbb::concurrent_queue<TwoPaCo::JunctionPosition> *queue)
+			tbb::concurrent_queue<TwoPaCo::JunctionPosition> *queue, 
+            std::vector<std::vector<int64_t> > inList,
+            std::vector<std::vector<int64_t> > outList)
 		{
 			if (result.size() > 0 && result.front().pieceId == currentPiece)
 			{
+                /*
+                 * std::cout << "In list\n";
+                for (int i = 0; i < inList.size(); i++) {
+                    if (inList[i].size()) {
+                        std::cout << i << ": ";
+                        for (int j = 0; j < inList[i].size(); j++) {
+                            std::cout << inList[i][j] << ' ';
+                        }
+                        std::cout << '\n';
+                    }
+                }
+                std::cout << "Out list\n";
+                for (int i = 0; i < outList.size(); i++) {
+                    if (outList[i].size()) {
+                        std::cout << i << ": ";
+                        for (int j = 0; j < outList[i].size(); j++) {
+                            std::cout << outList[i][j] << ' ';
+                        }
+                        std::cout << '\n';
+                    }
+                }
+                */
 				for (auto junction : result.front().junction)
 				{
 					//writer.WriteJunction(junction);
@@ -822,10 +852,11 @@ namespace TwoPaCo
 				const std::string & tmpDirectory,
 				size_t totalRounds,
 				std::unique_ptr<std::runtime_error> & error,
-				tbb::mutex & errorMutex, tbb::concurrent_queue<TwoPaCo::JunctionPosition> * queue) : vertexLength(vertexLength), taskQueue(taskQueue), bifStorage(bifStorage),
+				tbb::mutex & errorMutex, tbb::concurrent_queue<TwoPaCo::JunctionPosition> * queue, 
+                    std::vector<std::vector<int64_t> > inList, std::vector<std::vector<int64_t> > outList) : vertexLength(vertexLength), taskQueue(taskQueue), bifStorage(bifStorage),
 				writer(writer), currentPiece(currentPiece), occurences(occurences), tmpDirectory(tmpDirectory),
 				error(error), errorMutex(errorMutex), currentStubVertexId(currentStubVertexId), currentStubVertexMutex(currentStubVertexMutex), totalRounds(totalRounds),
-				queue(queue)
+				queue(queue), inList(inList), outList(outList)
 			{
 
 			}							
@@ -838,7 +869,7 @@ namespace TwoPaCo
 					std::deque<EdgeResult> result;
 					ConcurrentBitVector temporaryMask(Task::TASK_SIZE);
 					ConcurrentBitVector candidateMask(Task::TASK_SIZE);
-					while (true)
+                    while (true)
 					{
 						Task task;
 						if (taskQueue.try_pop(task))
@@ -877,7 +908,7 @@ namespace TwoPaCo
 								size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);
 								for (size_t pos = 1;; ++pos)
 								{
-									while (result.size() > 0 && FlushEdgeResults(result, writer, currentPiece, queue));
+									while (result.size() > 0 && FlushEdgeResults(result, writer, currentPiece, queue, inList, outList));
 									int64_t bifId(INVALID_VERTEX);
 									assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
 									if (definiteCount == vertexLength && candidateMask.GetBit(pos))
@@ -886,7 +917,12 @@ namespace TwoPaCo
 										if (bifId != INVALID_VERTEX)
 										{
 											occurences++;
-											currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId));
+                                            int in = (pos != 1) ? bifStorage.GetInDegree(task.str.begin() + pos-1) : 0;
+                                            int out = bifStorage.GetOutDegree(task.str.begin() + pos+1);
+                                            std::cout << pos << " In: " << in << " Out: " << out << '\n';
+                                            std::cout << "-------------------------\n";
+                                            //std::cout << bifId << ": " << counts.first << ' ' << counts.second << '\n';
+                                            currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId));
 										}
 									}
 
@@ -907,15 +943,29 @@ namespace TwoPaCo
 										break;
 									}
 								}
-
-								result.push_back(currentResult);
+                                
+                                /*
+                                 * std::cout << "Junction Id\n";
+                                int prvId = -1, curId;
+                                for (JunctionPosition junc : currentResult.junction) {
+                                    std::cout << junc.GetId() << ' ';
+                                    curId = std::abs(junc.GetId());
+                                    if (prvId != -1) {
+                                        inList[curId].push_back(prvId);
+                                        outList[prvId].push_back(curId);
+                                    }
+                                    prvId = curId;
+                                }
+                                std::cout << "\n";   
+								*/
+                                result.push_back(currentResult);
 							}
 						}
 					}
 
 					while (result.size() > 0)
 					{
-						FlushEdgeResults(result, writer, currentPiece, queue);
+						FlushEdgeResults(result, writer, currentPiece, queue, inList, outList);
 					}
 				}
 				catch (std::runtime_error & e)
@@ -940,6 +990,7 @@ namespace TwoPaCo
 			tbb::mutex & errorMutex;
 			tbb::mutex & currentStubVertexMutex;
 			tbb::concurrent_queue<TwoPaCo::JunctionPosition> * queue;
+            std::vector<std::vector<int64_t> > inList, outList;
 		};		
 		
 		class FilterFillerWorker
@@ -1154,7 +1205,9 @@ namespace TwoPaCo
 				bool bifurcation = it->IsBifurcation();
 				if (bifurcation)
 				{
+                    std::cout << "Final : " << it->get_loc_pos() << std::endl;
 					++truePositives;
+                    std::cout << "Junc prev : " << it->Prev() << " : " << it->Next() <<std::endl;
 					it->GetBase().WriteToFile(out);
 					if (!out)
 					{

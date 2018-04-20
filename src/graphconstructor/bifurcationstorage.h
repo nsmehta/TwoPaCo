@@ -96,6 +96,70 @@ namespace TwoPaCo
 			return hashFunction_;
 		}
 
+        int GetInDegree(std::string::const_iterator pos) const
+        {
+            int ret = 0;
+            DnaString bitBuf;
+            string cur;
+            char prv = cur.front();
+            
+            bitBuf.Clear();
+            bitBuf.CopyFromString(pos, vertexLength_);
+            
+            bitBuf.ToString(cur, vertexLength_);
+            // std::cout << "In : " << cur << '\n';
+		
+            string s = "ACGT";    
+            for (size_t i = 0; i < s.size(); i++) {
+                char c = s[i];
+                bitBuf.SetChar(0, c);
+                bitBuf.ToString(cur, vertexLength_);
+            
+                // std::cout << "Mod: " << cur << '\n';
+            
+                auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), bitBuf, DnaString::Less);
+                if (it != bifurcationKey_.end() && *it == bitBuf) {
+                    // std::cout << "In Found\n";
+                    ret++;
+                }
+            }
+            
+            bitBuf.SetChar(0, prv);
+            return ret;
+        }
+
+        int GetOutDegree(std::string::const_iterator pos) const
+        {
+            int ret = 0;
+            DnaString bitBuf;
+            string cur;
+            char prv = cur.back();
+            
+            bitBuf.Clear();
+            bitBuf.CopyFromString(pos, vertexLength_);
+            
+            bitBuf.ToString(cur, vertexLength_);
+            // std::cout << "Out: " << cur << '\n';
+		
+            string s = "ACGT";    
+            for (size_t i = 0; i < s.size(); i++) {
+                char c = s[i];
+                bitBuf.SetChar(vertexLength_-1, c);
+                bitBuf.ToString(cur, vertexLength_);
+            
+                // std::cout << "Mod: " << cur << '\n';
+            
+                auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), bitBuf, DnaString::Less);
+                if (it != bifurcationKey_.end() && *it == bitBuf) {
+                    // std::cout << "Out Found\n";
+                    ret++;
+                }
+            }
+            
+            bitBuf.SetChar(vertexLength_-1, prv);
+            return ret;
+        }
+
 	private:
 		int64_t GetId(std::string::const_iterator pos, bool posFound, bool negFound) const
 		{

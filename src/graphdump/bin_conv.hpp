@@ -9,7 +9,7 @@
 #include <cstdlib>
 #include <cmath>
 
-#define DEBUG 0
+#define DEBUG 1
 
 
 extern std::map<int64_t, int64_t> sequence_map;

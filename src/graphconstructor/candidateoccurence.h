@@ -13,15 +13,27 @@ namespace TwoPaCo
 		static const size_t IS_NEXT_N = 2;
 		static const char TRUE_BIF = 'A';
 		static const char FAKE_BIF = 'C';
-		static const size_t ADDITIONAL_CHAR = 4;
+		static const size_t ADDITIONAL_CHAR = 8;
 		static const size_t MAX_SIZE = CAPACITY * 32;
 		static const size_t NEXT_POS = MAX_SIZE - ADDITIONAL_CHAR;
 		static const size_t PREV_POS = NEXT_POS + 1;
 		static const size_t NMASK_POS = NEXT_POS + 2;
 		static const size_t IS_BIF_POS = NEXT_POS + 3;
+        static const size_t LOC_POS = NEXT_POS + 4;
 		static const size_t VERTEX_SIZE = MAX_SIZE - ADDITIONAL_CHAR;		
 
 		CandidateOccurence(){}
+
+        void set_loc_pos(size_t loc_pos) {
+            std::cout << "set ize_t : " << loc_pos << " char : " << (char)loc_pos << std::endl;
+            body_.SetChar(LOC_POS, (char)loc_pos);
+        }
+
+        size_t get_loc_pos() {
+            std::cout << " GET loc pos : " << " char : " << body_.GetChar(LOC_POS) << " : size_t " << body_.GetChar(LOC_POS)  << std::endl;
+            return (size_t) body_.GetChar(LOC_POS);
+        }
+
 		void Set(uint64_t posHash0,
 			uint64_t negHash0,			
 			std::string::const_iterator pos,
