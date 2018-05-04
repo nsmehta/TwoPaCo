@@ -77,9 +77,9 @@ class ProducerWorker
                         void operator()()
                         {
                                 std::unique_ptr<TwoPaCo::VertexEnumerator> vid = TwoPaCo::CreateEnumerator(
-					fileName,
+					            fileName,
                         		vertexLength, 
-					filterSize,
+					            filterSize,
                         		hashFunctions,
                         		rounds,
                         		threads,
@@ -89,11 +89,11 @@ class ProducerWorker
                         		queue,
                         		done);
 
-				if (vid) {
-                                        std::cout << "Distinct junctions = " << vid->GetVerticesCount() << std::endl;
+				                if (vid) {
+                                    std::cout << "Distinct junctions = " << vid->GetVerticesCount() << std::endl;
                                         std::cout << std::endl;
                                 }
-                        }
+                       }
 
                 private:
                        	const std::vector<std::string> & fileName;

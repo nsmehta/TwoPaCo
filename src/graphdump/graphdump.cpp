@@ -150,7 +150,7 @@ void GenerateGroupOutupt(const std::string & inputFileName)
 	}
 
 	tbb::parallel_sort(eqClass.begin(), eqClass.end(), CompareJunctionClasses);
-	for (auto junctionClass : eqClass)
+	/*for (auto junctionClass : eqClass)
 	{
 		for (auto j : junctionClass.position)
 		{
@@ -158,7 +158,7 @@ void GenerateGroupOutupt(const std::string & inputFileName)
 		}
 
 		std::cout << std::endl;
-	}
+	}*/
 
 }
 
@@ -166,10 +166,10 @@ void GenerateOrdinaryOutput(const std::string & inputFileName)
 {
 	TwoPaCo::JunctionPosition pos;
 	TwoPaCo::JunctionPositionReader reader(inputFileName.c_str());
-	while (reader.NextJunctionPosition(pos))
+	/*while (reader.NextJunctionPosition(pos))
 	{
 		std::cout << pos.GetChr() << ' ' << pos.GetPos() << ' ' << pos.GetId() << std::endl;
-	}
+	}*/
 }
 
 char Sign(int64_t arg)
