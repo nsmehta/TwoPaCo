@@ -460,7 +460,7 @@ namespace TwoPaCo
 						rounds,
 						error,
 						errorMutex,
-						queue, 
+						queue,
                         & inMap, & outMap);
 
 					workerThread[i].reset(new tbb::tbb_thread(worker));
@@ -1088,10 +1088,6 @@ namespace TwoPaCo
 						
 
 
-
-        
-
-
 		class EdgeConstructionWorker
 		{
 		public:
@@ -1173,26 +1169,39 @@ namespace TwoPaCo
 										if (bifId != INVALID_VERTEX)
 										{
 											occurences++;
-                                            int in = (pos != 1) ? bifStorage.GetInDegree(task.str.begin() + pos-1) : 0;
-                                            int out = bifStorage.GetOutDegree(task.str.begin() + pos+1);
-											std::string inKey = std::to_string(in);
-											std::string outKey = std::to_string(out);
-                                            
-											//if key not found
-                                            std::unordered_map<std::string, int64_t>::iterator it = inMap->find(inKey);
-                                            if (it == inMap->end()) {
-                                                inMap->insert(std::make_pair(inKey, 1));
-                                            } else {
-                                                it->second++;
-                                            }
-											
-											std::unordered_map<std::string, int64_t>::iterator it_r = outMap->find(inKey);
-                                            if (it_r == outMap->end()) {
-                                                outMap->insert(std::make_pair(outKey, 1));
-                                            } else {
-                                                it_r->second++;
-                                            }
+                                            std::cout << "Input String : " << task.str.substr(task.start + pos, vertexLength) << std::endl;
+                                            std::string in_base_str = task.str.substr(task.start + pos, vertexLength - 1);
+                                            std::string out_base_str = task.str.substr(task.start + pos + 1, vertexLength - 1); 
 
+											for (int i = 0; i < DnaChar::LITERAL.size(); i++)
+                                    		{ 
+                                                int64_t in_degree_bif_id = bifStorage.GetInDegree(in_base_str, DnaChar::LITERAL[i]);         
+                                        		if (in_degree_bif_id != INVALID_VERTEX) {
+                                                     std::cout << "in_degree : " << in_degree_bif_id << std::endl;
+                                                     std::string inKey = std::to_string(task.seqId) + "_" + std::to_string(task.start + pos);
+                                                     std::unordered_map<std::string, int64_t>::iterator it = inMap->find(inKey);
+                                            		if (it == inMap->end()) {
+                                                		inMap->insert(std::make_pair(inKey, 1));
+                                            		} else {
+                                                		it->second++;
+                                            		}	
+                                        		}
+
+                                                int64_t out_degree_bif_id = bifStorage.GetOutDegree(out_base_str, DnaChar::LITERAL[i]);
+                                        		if (out_degree_bif_id != INVALID_VERTEX) {
+                                                     std::cout << "out_degree : " << out_degree_bif_id << std::endl;
+                                                     std::string outKey = std::to_string(task.seqId) + "_" + std::to_string(task.start + pos);
+                                                     std::unordered_map<std::string, int64_t>::iterator it_r = outMap->find(outKey);
+                                            		if (it_r == outMap->end()) {
+                                                		outMap->insert(std::make_pair(outKey, 1));
+                                            		} else {
+                                                		it_r->second++;
+                                            		}
+	
+                                        		}
+                                    		}
+
+                                            
                                             currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId));
 										}
 									}

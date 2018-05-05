@@ -96,67 +96,78 @@ namespace TwoPaCo
 			return hashFunction_;
 		}
 
-        int GetInDegree(std::string::const_iterator pos) const
+        int64_t GetInDegree(std::string  cur, char prev_char) const
         {
-            int ret = 0;
+            int64_t ret = INVALID_VERTEX;
             DnaString bitBuf;
-            string cur;
-            char prv = cur.front();
-            
             bitBuf.Clear();
-            bitBuf.CopyFromString(pos, vertexLength_);
-            
-            bitBuf.ToString(cur, vertexLength_);
-            // std::cout << "In : " << cur << '\n';
-		
-            string s = "ACGT";    
-            for (size_t i = 0; i < s.size(); i++) {
-                char c = s[i];
-                bitBuf.SetChar(0, c);
-                bitBuf.ToString(cur, vertexLength_);
-            
-                // std::cout << "Mod: " << cur << '\n';
-            
-                auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), bitBuf, DnaString::Less);
-                if (it != bifurcationKey_.end() && *it == bitBuf) {
-                    // std::cout << "In Found\n";
-                    ret++;
-                }
+            int count_index = 0;
+            bitBuf.SetChar(count_index++, prev_char);
+            for (char& ch : cur) {
+                bitBuf.SetChar(count_index++, ch);
             }
-            
-            bitBuf.SetChar(0, prv);
+
+            auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), bitBuf, DnaString::Less);
+           
+            bitBuf.ToString(cur, vertexLength_);
+            std::cout << "In : " << cur << '\n';
+
+            if (it != bifurcationKey_.end() && *it == bitBuf) {
+                   std::cout << "Hiiii" << std::endl;                          
+                   return it - bifurcationKey_.begin() + 1;
+            }
+
+            bitBuf.Clear();
+            count_index = 0;
+            bitBuf.SetChar(count_index++, DnaChar::ReverseChar(prev_char));
+            for (char& ch : cur) {
+                bitBuf.SetChar(count_index++, ch);
+            }
+            //bitBuf.SetChar(count_index++, DnaChar::ReverseChar(prev_char));
+            if (it != bifurcationKey_.end() && *it == bitBuf) {
+                   std::cout << "Hello" << std::endl;             
+                   return  -(it - bifurcationKey_.begin() + 1);
+            }            
+	        std::cout << "Returning from last" << std::endl;    	
             return ret;
         }
 
-        int GetOutDegree(std::string::const_iterator pos) const
+        int64_t GetOutDegree(std::string  cur, char next_char) const
         {
-            int ret = 0;
+
+			int64_t ret = INVALID_VERTEX;
             DnaString bitBuf;
-            string cur;
-            char prv = cur.back();
-            
             bitBuf.Clear();
-            bitBuf.CopyFromString(pos, vertexLength_);
-            
+            int count_index = 0;
+            //bitBuf.SetChar(count_index++, prev_char);
+            for (char& ch : cur) {
+                bitBuf.SetChar(count_index++, ch);
+            }
+
+            bitBuf.SetChar(count_index++, next_char);
+
+            auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), bitBuf, DnaString::Less);
+
             bitBuf.ToString(cur, vertexLength_);
-            // std::cout << "Out: " << cur << '\n';
-		
-            string s = "ACGT";    
-            for (size_t i = 0; i < s.size(); i++) {
-                char c = s[i];
-                bitBuf.SetChar(vertexLength_-1, c);
-                bitBuf.ToString(cur, vertexLength_);
+            std::cout << "Out : " << cur << '\n';
             
-                // std::cout << "Mod: " << cur << '\n';
-            
-                auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), bitBuf, DnaString::Less);
-                if (it != bifurcationKey_.end() && *it == bitBuf) {
-                    // std::cout << "Out Found\n";
-                    ret++;
-                }
+            if (it != bifurcationKey_.end() && *it == bitBuf) {
+                   std::cout << "Hiiii" << std::endl;      
+                   return it - bifurcationKey_.begin() + 1;
             }
             
-            bitBuf.SetChar(vertexLength_-1, prv);
+            bitBuf.Clear();
+            count_index = 0;
+            //bitBuf.SetChar(count_index++, DnaChar::ReverseChar(prev_char));
+            for (char& ch : cur) {
+                bitBuf.SetChar(count_index++, ch);
+            }
+            bitBuf.SetChar(count_index++, DnaChar::ReverseChar(next_char));
+            if (it != bifurcationKey_.end() && *it == bitBuf) {
+                   std::cout << "Hello" << std::endl;          
+                   return  -(it - bifurcationKey_.begin() + 1);
+            }
+            std::cout << "Returning from last" << std::endl;
             return ret;
         }
 
