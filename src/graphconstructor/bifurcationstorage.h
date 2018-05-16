@@ -54,6 +54,7 @@ namespace TwoPaCo
 
 				buf.ToString(stringBuf, vertexLength);
 				bifurcationKey_.push_back(buf);
+		//std::cout << stringBuf << ' ' << vertexLength << ' ' << stringBuf.size() << '\n';
 				for (HashFunctionPtr & ptr : hashFunction_)
 				{
 					uint64_t hf = ptr->hash(stringBuf);
@@ -110,10 +111,10 @@ namespace TwoPaCo
             auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), bitBuf, DnaString::Less);
            
             bitBuf.ToString(cur, vertexLength_);
-            std::cout << "In : " << cur << '\n';
+            //std::cout << "In : " << cur << '\n';
 
             if (it != bifurcationKey_.end() && *it == bitBuf) {
-                   std::cout << "Hiiii" << std::endl;                          
+                   //std::cout << "Hiiii" << std::endl;                          
                    return it - bifurcationKey_.begin() + 1;
             }
 
@@ -128,7 +129,7 @@ namespace TwoPaCo
                    std::cout << "Hello" << std::endl;             
                    return  -(it - bifurcationKey_.begin() + 1);
             }            
-	        std::cout << "Returning from last" << std::endl;    	
+	        //std::cout << "Returning from last" << std::endl;    	
             return ret;
         }
 
@@ -149,10 +150,10 @@ namespace TwoPaCo
             auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), bitBuf, DnaString::Less);
 
             bitBuf.ToString(cur, vertexLength_);
-            std::cout << "Out : " << cur << '\n';
+            //std::cout << "Out : " << cur << '\n';
             
             if (it != bifurcationKey_.end() && *it == bitBuf) {
-                   std::cout << "Hiiii" << std::endl;      
+                   //std::cout << "Hiiii" << std::endl;      
                    return it - bifurcationKey_.begin() + 1;
             }
             
@@ -167,7 +168,7 @@ namespace TwoPaCo
                    std::cout << "Hello" << std::endl;          
                    return  -(it - bifurcationKey_.begin() + 1);
             }
-            std::cout << "Returning from last" << std::endl;
+            //std::cout << "Returning from last" << std::endl;
             return ret;
         }
 

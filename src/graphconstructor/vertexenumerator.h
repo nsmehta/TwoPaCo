@@ -312,6 +312,7 @@ namespace TwoPaCo
 				mark = time(0);
 				tbb::spin_rw_mutex mutex;
 				logStream << "2\t";
+				std::unordered_map <std::string, int> inDegree, outDegree;
 				OccurenceSet occurenceSet(1 << 20);
 				{
 					std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
@@ -325,7 +326,8 @@ namespace TwoPaCo
 							tmpDirName,
 							round,
 							error,
-							errorMutex);
+							errorMutex,
+							&inDegree, &outDegree);
 
 						workerThread[i].reset(new tbb::tbb_thread(worker));
 					}
@@ -356,6 +358,14 @@ namespace TwoPaCo
 				totalFpCount += falsePositives;
 				verticesCount += truePositives;
 				low = high + 1;
+				std::cout << "inDegree\n";
+				for (auto x: inDegree) {
+					std::cout << x.first << ' ' << x.second << '\n';
+				}
+				std::cout << "outDegree\n";
+				for (auto x: outDegree) {
+					std::cout << x.first << ' ' << x.second << '\n';
+				}
 			}
 
 			if (rounds > 1)
@@ -473,7 +483,7 @@ namespace TwoPaCo
 				}
 
 
-				std::cout << "************ start ******************" << std::endl;
+				//std::cout << "************ start ******************" << std::endl;
                 uint64_t my_cal_jun_in = 0;
                 uint64_t my_cal_jun_out = 0; 
                 std::ofstream juncTypeTempWrite((tmpDirName + "/junction_type_indegree.txt").c_str());
@@ -496,8 +506,7 @@ namespace TwoPaCo
                 }   
                 juncTypeTempWrite_r.close();
 
-                std::cout << "Junctions calculated  indegree : " << my_cal_jun_in << " outdegree : " << my_cal_jun_out << std::endl;
-				std::cout << "************** end ****************" << std::endl;
+                //std::cout << "Junctions calculated  indegree : " << my_cal_jun_in << " outdegree : " << my_cal_jun_out << std::endl;
 			}
 
 			if (error != 0)
@@ -776,8 +785,8 @@ namespace TwoPaCo
 				const std::string & tmpDirectory,
 				size_t round,
 				std::unique_ptr<std::runtime_error> & error,
-				tbb::mutex & errorMutex) : hashFunction(hashFunction), vertexLength(vertexLength), taskQueue(taskQueue), occurenceSet(occurenceSet),
-				mutex(mutex), tmpDirectory(tmpDirectory), round(round), error(error), errorMutex(errorMutex)
+				tbb::mutex & errorMutex, std::unordered_map <std::string, int> *inDegree, std::unordered_map <std::string, int> *outDegree) : hashFunction(hashFunction), vertexLength(vertexLength), taskQueue(taskQueue), occurenceSet(occurenceSet),
+				mutex(mutex), tmpDirectory(tmpDirectory), round(round), error(error), errorMutex(errorMutex), inDegree(inDegree), outDegree(outDegree)
 			{
 
 			}
@@ -814,7 +823,6 @@ namespace TwoPaCo
 									ReportError(errorMutex, error, err.what());
 								}
 							}
-
 							for (size_t pos = 1;; ++pos)
 							{
 								char posPrev = task.str[pos - 1];
@@ -845,6 +853,35 @@ namespace TwoPaCo
 											it->MakeBifurcation();
 										}
 									}
+									std::string key = task.str.substr(task.start + pos, vertexLength);
+									if (it->Next() != now.Next()) {
+										if ((*outDegree).find(key) == (*outDegree).end()) {
+											(*outDegree)[key] = 1;
+										}
+										(*outDegree)[key]++;
+										//std::cout << key << ": " << pos << ": next " << it->Next() << ' ' << now.Next() << '\n';	
+									}
+									if (it->Prev() != now.Prev()) {
+										if ((*inDegree).find(key) == (*inDegree).end()) {
+											(*inDegree)[key] = 1;
+										}
+										(*inDegree)[key]++;
+										//std::cout << key << ": " << pos << ": prev " << it->Prev() << ' ' << now.Prev() << '\n';
+									}
+									if (inUnknownCount > 1) {
+										if ((*inDegree).find(key) == (*inDegree).end()) {
+											(*inDegree)[key] = 1;
+										}
+										(*inDegree)[key]++;
+										//std::cout << key << ": " << pos << ": inco\n";
+									}
+									if (outUnknownCount > 1) {
+										if ((*outDegree).find(key) == (*outDegree).end()) {
+											(*outDegree)[key] = 1;
+										}
+										(*outDegree)[key]++;
+										//std::cout << key << ": "<< pos << ": outco\n";
+									}
 								}
 
 								if (pos + edgeLength < task.str.size())
@@ -873,6 +910,7 @@ namespace TwoPaCo
 			size_t round;
 			std::unique_ptr<std::runtime_error> & error;
 			tbb::mutex & errorMutex;
+			std::unordered_map <std::string, int> *inDegree, *outDegree;
 		};
 
 		struct EdgeResult
@@ -1169,7 +1207,7 @@ namespace TwoPaCo
 										if (bifId != INVALID_VERTEX)
 										{
 											occurences++;
-                                            std::cout << "Input String : " << task.str.substr(task.start + pos, vertexLength) << std::endl;
+                                            //std::cout << "Input String : " << pos << ' ' << task.str.substr(task.start + pos, vertexLength) << std::endl;
                                             std::string in_base_str = task.str.substr(task.start + pos, vertexLength - 1);
                                             std::string out_base_str = task.str.substr(task.start + pos + 1, vertexLength - 1); 
 
@@ -1177,7 +1215,7 @@ namespace TwoPaCo
                                     		{ 
                                                 int64_t in_degree_bif_id = bifStorage.GetInDegree(in_base_str, DnaChar::LITERAL[i]);         
                                         		if (in_degree_bif_id != INVALID_VERTEX) {
-                                                     std::cout << "in_degree : " << in_degree_bif_id << std::endl;
+                                                     //std::cout << "in_degree : " << in_degree_bif_id << std::endl;
                                                      std::string inKey = std::to_string(task.seqId) + "_" + std::to_string(task.start + pos);
                                                      std::unordered_map<std::string, int64_t>::iterator it = inMap->find(inKey);
                                             		if (it == inMap->end()) {
@@ -1189,7 +1227,7 @@ namespace TwoPaCo
 
                                                 int64_t out_degree_bif_id = bifStorage.GetOutDegree(out_base_str, DnaChar::LITERAL[i]);
                                         		if (out_degree_bif_id != INVALID_VERTEX) {
-                                                     std::cout << "out_degree : " << out_degree_bif_id << std::endl;
+                                                     //std::cout << "out_degree : " << out_degree_bif_id << std::endl;
                                                      std::string outKey = std::to_string(task.seqId) + "_" + std::to_string(task.start + pos);
                                                      std::unordered_map<std::string, int64_t>::iterator it_r = outMap->find(outKey);
                                             		if (it_r == outMap->end()) {
