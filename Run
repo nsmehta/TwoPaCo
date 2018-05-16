@@ -1,0 +1,12 @@
+523
+
+Build
+cd TwoPaCo/build
+cmake ../src
+make
+
+Run
+cd TwoPaCo
+./build/graphconstructor/twopaco -f 20 -k 11 example/example.fa -m out.bin -l binary
+./build/graphconstructor/twopaco -f 20 -k 11 example/example.fa -m out.gfa -l gfa1
+./build/graphconstructor/twopaco -f 20 -k 5 example/small.fa -m example/small.gfa -l gfa1
