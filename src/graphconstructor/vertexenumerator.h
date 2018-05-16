@@ -312,7 +312,6 @@ namespace TwoPaCo
 				mark = time(0);
 				tbb::spin_rw_mutex mutex;
 				logStream << "2\t";
-				std::unordered_map <std::string, int> inDegree, outDegree;
 				OccurenceSet occurenceSet(1 << 20);
 				{
 					std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
@@ -326,8 +325,7 @@ namespace TwoPaCo
 							tmpDirName,
 							round,
 							error,
-							errorMutex,
-							&inDegree, &outDegree);
+							errorMutex);
 
 						workerThread[i].reset(new tbb::tbb_thread(worker));
 					}
@@ -358,14 +356,6 @@ namespace TwoPaCo
 				totalFpCount += falsePositives;
 				verticesCount += truePositives;
 				low = high + 1;
-				std::cout << "inDegree\n";
-				for (auto x: inDegree) {
-					std::cout << x.first << ' ' << x.second << '\n';
-				}
-				std::cout << "outDegree\n";
-				for (auto x: outDegree) {
-					std::cout << x.first << ' ' << x.second << '\n';
-				}
 			}
 
 			if (rounds > 1)
@@ -785,8 +775,8 @@ namespace TwoPaCo
 				const std::string & tmpDirectory,
 				size_t round,
 				std::unique_ptr<std::runtime_error> & error,
-				tbb::mutex & errorMutex, std::unordered_map <std::string, int> *inDegree, std::unordered_map <std::string, int> *outDegree) : hashFunction(hashFunction), vertexLength(vertexLength), taskQueue(taskQueue), occurenceSet(occurenceSet),
-				mutex(mutex), tmpDirectory(tmpDirectory), round(round), error(error), errorMutex(errorMutex), inDegree(inDegree), outDegree(outDegree)
+				tbb::mutex & errorMutex) : hashFunction(hashFunction), vertexLength(vertexLength), taskQueue(taskQueue), occurenceSet(occurenceSet),
+				mutex(mutex), tmpDirectory(tmpDirectory), round(round), error(error), errorMutex(errorMutex)
 			{
 
 			}
@@ -855,33 +845,21 @@ namespace TwoPaCo
 									}
 									std::string key = task.str.substr(task.start + pos, vertexLength);
 									if (it->Next() != now.Next()) {
-										if ((*outDegree).find(key) == (*outDegree).end()) {
-											(*outDegree)[key] = 1;
-										}
-										(*outDegree)[key]++;
-										//std::cout << key << ": " << pos << ": next " << it->Next() << ' ' << now.Next() << '\n';	
+										it->SetOutEdges(now.Next(), hash.RawPositiveHash(0), hash.RawNegativeHash(0), task.str.begin() + pos, vertexLength);
+										it->SetOutEdges(it->Next(), hash.RawPositiveHash(0), hash.RawNegativeHash(0), task.str.begin() + pos, vertexLength);
+										//std::cout << key << ": " << pos << ": next " << now.Next() << ' ' << it->Next() << '\n';	
 									}
 									if (it->Prev() != now.Prev()) {
-										if ((*inDegree).find(key) == (*inDegree).end()) {
-											(*inDegree)[key] = 1;
-										}
-										(*inDegree)[key]++;
-										//std::cout << key << ": " << pos << ": prev " << it->Prev() << ' ' << now.Prev() << '\n';
+										it->SetInEdges(now.Prev(), hash.RawPositiveHash(0), hash.RawNegativeHash(0), task.str.begin() + pos, vertexLength);
+										it->SetInEdges(it->Prev(), hash.RawPositiveHash(0), hash.RawNegativeHash(0), task.str.begin() + pos, vertexLength);
+										//std::cout << key << ": " << pos << ": prev " << now.Prev() << ' ' << it->Prev() << '\n';
 									}
-									if (inUnknownCount > 1) {
-										if ((*inDegree).find(key) == (*inDegree).end()) {
-											(*inDegree)[key] = 1;
-										}
-										(*inDegree)[key]++;
-										//std::cout << key << ": " << pos << ": inco\n";
+									/*if (inUnknownCount > 1) {
+										std::cout << key << ": " << pos << ": inco\n";
 									}
 									if (outUnknownCount > 1) {
-										if ((*outDegree).find(key) == (*outDegree).end()) {
-											(*outDegree)[key] = 1;
-										}
-										(*outDegree)[key]++;
-										//std::cout << key << ": "<< pos << ": outco\n";
-									}
+										std::cout << key << ": "<< pos << ": outco\n";
+									}*/
 								}
 
 								if (pos + edgeLength < task.str.size())
@@ -910,7 +888,6 @@ namespace TwoPaCo
 			size_t round;
 			std::unique_ptr<std::runtime_error> & error;
 			tbb::mutex & errorMutex;
-			std::unordered_map <std::string, int> *inDegree, *outDegree;
 		};
 
 		struct EdgeResult
@@ -1521,10 +1498,9 @@ namespace TwoPaCo
 				bool bifurcation = it->IsBifurcation();
 				if (bifurcation)
 				{
-                    //std::cout << "Final : " << it->get_loc_pos() << std::endl;
 					++truePositives;
-                    //std::cout << "Junc prev : " << it->Prev() << " : " << it->Next() <<std::endl;
 					it->GetBase().WriteToFile(out);
+					std::cout << it->GetBase().ToString(vertexSize) << ' ' << it->GetInEdges() << ' ' << it->GetOutEdges() << '\n';
 					if (!out)
 					{
 						throw StreamFastaParser::Exception("Can't write to a temporary file");

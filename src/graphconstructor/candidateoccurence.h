@@ -13,29 +13,53 @@ namespace TwoPaCo
 		static const size_t IS_NEXT_N = 2;
 		static const char TRUE_BIF = 'A';
 		static const char FAKE_BIF = 'C';
-		static const size_t ADDITIONAL_CHAR = 4;
+		static const size_t ADDITIONAL_CHAR = 4 + 10;	// 4: IN_A, 5: IN_C, 6: IN_G, 7: IN_T, 8: IN_N, 9: OUT_A, 10: OUT_C, 11: OUT_G, 12: OUT_T, 13: OUT_N
 		static const size_t MAX_SIZE = CAPACITY * 32;
 		static const size_t NEXT_POS = MAX_SIZE - ADDITIONAL_CHAR;
 		static const size_t PREV_POS = NEXT_POS + 1;
 		static const size_t NMASK_POS = NEXT_POS + 2;
 		static const size_t IS_BIF_POS = NEXT_POS + 3;
-        static const size_t LOC_POS = NEXT_POS + 4;
+		static const size_t EDGE_POS = NEXT_POS + 4;
 		static const size_t VERTEX_SIZE = MAX_SIZE - ADDITIONAL_CHAR;		
 
 		CandidateOccurence(){}
 
-        /*
-        void set_loc_pos(size_t loc_pos) {
-            //std::cout << "set ize_t : " << loc_pos << " char : " << (char)loc_pos << std::endl;
-            body_.SetChar(LOC_POS, (char)loc_pos);
-        }
+		void SetInEdges(const char base, uint64_t posHash0, uint64_t negHash0, std::string::const_iterator pos, size_t vertexLength)
+		{
+			if (DnaChar::IsDefinite(base))
+				body_.SetChar(EDGE_POS + DnaChar::MakeUpChar(base), TRUE_BIF);
+			else
+				body_.SetChar(EDGE_POS + 4, TRUE_BIF);
+		}
+		
+		void SetOutEdges(const char base, uint64_t posHash0, uint64_t negHash0, std::string::const_iterator pos, size_t vertexLength)
+		{
+			if (DnaChar::IsDefinite(base))
+				body_.SetChar(EDGE_POS + 5 + DnaChar::MakeUpChar(base), TRUE_BIF);
+			else
+				body_.SetChar(EDGE_POS + 5 + 4, TRUE_BIF);
+		}
 
-        size_t get_loc_pos() {
-            //std::cout << " GET loc pos : " << " char : " << body_.GetChar(LOC_POS) << " : size_t " << body_.GetChar(LOC_POS)  << std::endl;
-            return (size_t) body_.GetChar(LOC_POS);
-        }
-        */
-
+		int GetInEdges()
+		{
+			int ret = 0;
+			for (int i = 0; i < 5; i++) {
+				if (body_.GetChar(EDGE_POS + i) == TRUE_BIF) 
+					ret++;
+			}
+			return ret;
+		}
+		
+		int GetOutEdges()
+		{
+			int ret = 0;
+			for (int i = 0; i < 5; i++) {
+				if (body_.GetChar(EDGE_POS + 5 + i) == TRUE_BIF) 
+					ret++;
+			}
+			return ret;
+		}
+		
 		void Set(uint64_t posHash0,
 			uint64_t negHash0,			
 			std::string::const_iterator pos,
@@ -58,8 +82,9 @@ namespace TwoPaCo
 				body_.SetChar(PREV_POS, DnaChar::ReverseChar(posExtend));
 				body_.SetChar(NMASK_POS, EncodeNmask(posPrev, posExtend));
 			}
-
-			body_.SetChar(IS_BIF_POS, isBifurcation ? TRUE_BIF : FAKE_BIF);
+			for (int i = 0; i < 10; i++) {
+				body_.SetChar(NEXT_POS + 4 + i, FAKE_BIF);
+			}
 		}
 
 		char Prev() const
