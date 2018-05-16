@@ -47,7 +47,7 @@ namespace TwoPaCo
 				if (body_.GetChar(EDGE_POS + i) == TRUE_BIF) 
 					ret++;
 			}
-			return ret;
+			return ret == 0 ? 1 : ret;
 		}
 		
 		int GetOutEdges()
@@ -57,7 +57,7 @@ namespace TwoPaCo
 				if (body_.GetChar(EDGE_POS + 5 + i) == TRUE_BIF) 
 					ret++;
 			}
-			return ret;
+			return ret == 0 ? 1 : ret;
 		}
 		
 		void Set(uint64_t posHash0,

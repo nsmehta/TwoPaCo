@@ -539,7 +539,7 @@ void GenerateGfaOutput(const std::vector<std::string> & genomes, size_t k, bool 
                                                  std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
                                          }
                                  
-                                         //std::cout << "Test junct " << begin.GetPos() << " : " << segmentId << std::endl;
+                                         std::cout << "Test junct " << begin.GetPos() << " : " << begin.GetIn() << ' ' << begin.GetOut() << ' ' << segmentId << std::endl;
                                          g.Segment(segmentId, segmentSize, ss.str(), os);
                                          seen[Abs(segmentId)] = true;
                                  }

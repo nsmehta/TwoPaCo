@@ -24,7 +24,12 @@ namespace TwoPaCo
 			return bifurcationKey_.size() * 2;
 		}
 
-		void Init(std::istream & bifurcationTempRead, uint64_t verticesCount, uint64_t vertexLength, size_t threads)
+		static bool LessBif(std::pair<DnaString, std::pair<int, int> > b1, std::pair<DnaString, std::pair<int, int> > b2)
+		{
+			return DnaString::Less(b1.first, b2.first);
+		}
+		
+		void Init(std::istream & bifurcationTempRead, std::istream & junctionTempRead, uint64_t verticesCount, uint64_t vertexLength, size_t threads)
 		{
 			uint64_t bitsPower = 0;
 			vertexLength_ = vertexLength;
@@ -43,6 +48,8 @@ namespace TwoPaCo
 			}
 
 			DnaString buf;
+			int inDeg, outDeg;
+			char inDeg_c, outDeg_c;
 			std::string stringBuf(vertexLength, ' ');
 			for (size_t i = 0; i < verticesCount; i++)
 			{
@@ -53,8 +60,12 @@ namespace TwoPaCo
 				}
 
 				buf.ToString(stringBuf, vertexLength);
-				bifurcationKey_.push_back(buf);
-		//std::cout << stringBuf << ' ' << vertexLength << ' ' << stringBuf.size() << '\n';
+				junctionTempRead >> inDeg_c;
+				junctionTempRead >> outDeg_c;
+				inDeg = inDeg_c - '0';
+				outDeg = outDeg_c - '0';
+				bifurcationKey_.push_back(std::make_pair(buf, std::make_pair(inDeg, outDeg)));
+				std::cout << stringBuf << ' ' << inDeg << ' ' << outDeg << '\n';
 				for (HashFunctionPtr & ptr : hashFunction_)
 				{
 					uint64_t hf = ptr->hash(stringBuf);
@@ -63,14 +74,19 @@ namespace TwoPaCo
 			}
 
 			tbb::task_scheduler_init init(threads);
-			tbb::parallel_sort(bifurcationKey_.begin(), bifurcationKey_.end(), DnaString::Less);
+			tbb::parallel_sort(bifurcationKey_.begin(), bifurcationKey_.end(), LessBif);
+		}
+
+		std::pair<int64_t, std::pair<int, int> > GetId2(std::string::const_iterator pos) const
+		{
+			return GetId2(pos, true, true);
 		}
 
 		int64_t GetId(std::string::const_iterator pos) const
 		{
 			return GetId(pos, true, true);
 		}
-
+		/*
 		int64_t GetId(std::string::const_iterator pos, const std::vector<HashFunctionPtr> & posVertexHash, const std::vector<HashFunctionPtr> & negVertexHash) const
 		{
 			bool posFound = true;
@@ -91,86 +107,14 @@ namespace TwoPaCo
 
 			return GetId(pos, posFound, negFound);
 		}
+		*/
 
 		const std::vector<HashFunctionPtr>& GetHashFunctions() const
 		{
 			return hashFunction_;
 		}
 
-        int64_t GetInDegree(std::string  cur, char prev_char) const
-        {
-            int64_t ret = INVALID_VERTEX;
-            DnaString bitBuf;
-            bitBuf.Clear();
-            int count_index = 0;
-            bitBuf.SetChar(count_index++, prev_char);
-            for (char& ch : cur) {
-                bitBuf.SetChar(count_index++, ch);
-            }
-
-            auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), bitBuf, DnaString::Less);
-           
-            bitBuf.ToString(cur, vertexLength_);
-            //std::cout << "In : " << cur << '\n';
-
-            if (it != bifurcationKey_.end() && *it == bitBuf) {
-                   //std::cout << "Hiiii" << std::endl;                          
-                   return it - bifurcationKey_.begin() + 1;
-            }
-
-            bitBuf.Clear();
-            count_index = 0;
-            bitBuf.SetChar(count_index++, DnaChar::ReverseChar(prev_char));
-            for (char& ch : cur) {
-                bitBuf.SetChar(count_index++, ch);
-            }
-            //bitBuf.SetChar(count_index++, DnaChar::ReverseChar(prev_char));
-            if (it != bifurcationKey_.end() && *it == bitBuf) {
-                   std::cout << "Hello" << std::endl;             
-                   return  -(it - bifurcationKey_.begin() + 1);
-            }            
-	        //std::cout << "Returning from last" << std::endl;    	
-            return ret;
-        }
-
-        int64_t GetOutDegree(std::string  cur, char next_char) const
-        {
-
-			int64_t ret = INVALID_VERTEX;
-            DnaString bitBuf;
-            bitBuf.Clear();
-            int count_index = 0;
-            //bitBuf.SetChar(count_index++, prev_char);
-            for (char& ch : cur) {
-                bitBuf.SetChar(count_index++, ch);
-            }
-
-            bitBuf.SetChar(count_index++, next_char);
-
-            auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), bitBuf, DnaString::Less);
-
-            bitBuf.ToString(cur, vertexLength_);
-            //std::cout << "Out : " << cur << '\n';
-            
-            if (it != bifurcationKey_.end() && *it == bitBuf) {
-                   //std::cout << "Hiiii" << std::endl;      
-                   return it - bifurcationKey_.begin() + 1;
-            }
-            
-            bitBuf.Clear();
-            count_index = 0;
-            //bitBuf.SetChar(count_index++, DnaChar::ReverseChar(prev_char));
-            for (char& ch : cur) {
-                bitBuf.SetChar(count_index++, ch);
-            }
-            bitBuf.SetChar(count_index++, DnaChar::ReverseChar(next_char));
-            if (it != bifurcationKey_.end() && *it == bitBuf) {
-                   std::cout << "Hello" << std::endl;          
-                   return  -(it - bifurcationKey_.begin() + 1);
-            }
-            //std::cout << "Returning from last" << std::endl;
-            return ret;
-        }
+        
 
 	private:
 		int64_t GetId(std::string::const_iterator pos, bool posFound, bool negFound) const
@@ -182,8 +126,8 @@ namespace TwoPaCo
 				posFound = false;
 				bitBuf.Clear();
 				bitBuf.CopyFromString(pos, vertexLength_);
-				auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), bitBuf, DnaString::Less);
-				if (it != bifurcationKey_.end() && *it == bitBuf)
+				auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), std::make_pair(bitBuf, std::make_pair(-1, -1)), LessBif);
+				if (it != bifurcationKey_.end() && (*it).first == bitBuf)
 				{
 					posFound = true;
 					ret = it - bifurcationKey_.begin() + 1;
@@ -195,8 +139,8 @@ namespace TwoPaCo
 				negFound = false;
 				bitBuf.Clear();
 				bitBuf.CopyFromReverseString(pos, vertexLength_);
-				auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), bitBuf, DnaString::Less);
-				if (it != bifurcationKey_.end() && *it == bitBuf)
+				auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), std::make_pair(bitBuf, std::make_pair(-1, -1)), LessBif);
+				if (it != bifurcationKey_.end() && (*it).first == bitBuf)
 				{
 					negFound = true;
 					ret = -(it - bifurcationKey_.begin() + 1);
@@ -216,8 +160,8 @@ namespace TwoPaCo
 					bitBuf.CopyFromReverseString(pos, vertexLength_);
 				}
 
-				auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), bitBuf, DnaString::Less);
-				if (it != bifurcationKey_.end() && *it == bitBuf)
+				auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), std::make_pair(bitBuf, std::make_pair(-1, -1)), LessBif);
+				if (it != bifurcationKey_.end() && (*it).first == bitBuf)
 				{
 					found = true;
 				}
@@ -228,11 +172,71 @@ namespace TwoPaCo
 			return ret;
 		}
 
+		std::pair<int64_t, std::pair<int, int> > GetId2(std::string::const_iterator pos, bool posFound, bool negFound) const
+		{
+			DnaString bitBuf;
+			std::pair<int64_t, std::pair<int, int> > ret = std::make_pair(INVALID_VERTEX, std::make_pair(-1, -1));
+			if (posFound)
+			{
+				posFound = false;
+				bitBuf.Clear();
+				bitBuf.CopyFromString(pos, vertexLength_);
+				auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), std::make_pair(bitBuf, std::make_pair(-1, -1)), LessBif);
+				if (it != bifurcationKey_.end() && (*it).first == bitBuf)
+				{
+					posFound = true;
+					ret.first = it - bifurcationKey_.begin() + 1;
+					ret.second.first = (*it).second.first;
+					ret.second.second = (*it).second.second;
+				}
+			}
+
+			if (negFound && !posFound)
+			{
+				negFound = false;
+				bitBuf.Clear();
+				bitBuf.CopyFromReverseString(pos, vertexLength_);
+				auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), std::make_pair(bitBuf, std::make_pair(-1, -1)), LessBif);
+				if (it != bifurcationKey_.end() && (*it).first == bitBuf)
+				{
+					negFound = true;
+					ret.first = -(it - bifurcationKey_.begin() + 1);
+					ret.second.first = (*it).second.first;
+					ret.second.second = (*it).second.second;
+				}
+			}
+#ifdef _DEBUG
+			bool found = false;
+			for (size_t strand = 0; strand < 2; ++strand)
+			{
+				bitBuf.Clear();
+				if (strand == 0)
+				{
+					bitBuf.CopyFromString(pos, vertexLength_);
+				}
+				else
+				{
+					bitBuf.CopyFromReverseString(pos, vertexLength_);
+				}
+
+				auto it = std::lower_bound(bifurcationKey_.begin(), bifurcationKey_.end(), std::make_pair(bitBuf, std::make_pair(-1, -1)), LessBif);
+				if (it != bifurcationKey_.end() && (*it).first == bitBuf)
+				{
+					found = true;
+				}
+			}
+
+			assert(found == (posFound || negFound));
+#endif
+			return ret;
+		}
+
+
 		DISALLOW_COPY_AND_ASSIGN(BifurcationStorage<CAPACITY>);
 
 		size_t vertexLength_;
 		std::vector<bool> bifurcationFilter_;
-		std::vector<DnaString> bifurcationKey_;
+		std::vector<std::pair<DnaString, std::pair<int, int> > > bifurcationKey_;
 		std::vector<HashFunctionPtr> hashFunction_;
 	};
 }

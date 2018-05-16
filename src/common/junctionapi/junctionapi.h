@@ -12,7 +12,9 @@ namespace TwoPaCo
 	public:
 		JunctionPosition() : chr_(UINT32_MAX), pos_(UINT32_MAX), bifId_(INT64_MAX) {}
 		JunctionPosition(uint32_t chr, uint32_t pos, int64_t bifId) :
-			chr_(chr), pos_(pos), bifId_(bifId) {}
+			chr_(chr), pos_(pos), bifId_(bifId), inDeg_(-1), outDeg_(-1) {}
+		JunctionPosition(uint32_t chr, uint32_t pos, int64_t bifId, int inDeg, int outDeg) :
+			chr_(chr), pos_(pos), bifId_(bifId), inDeg_(inDeg), outDeg_(outDeg) {}
 		uint32_t GetPos() const
 		{
 			return pos_;
@@ -28,10 +30,21 @@ namespace TwoPaCo
 			return bifId_;
 		}
 
+		int GetIn() const
+		{
+			return inDeg_;
+		}
+		
+		int GetOut() const
+		{
+			return outDeg_;
+		}
+
 	private:
 		uint32_t chr_;
 		uint32_t pos_;
 		int64_t bifId_;
+		int inDeg_, outDeg_;
 		static const int64_t SEPARATOR_BIF = INT64_MAX;
 		static const uint32_t SEPARATOR_POS = -1;		
 		friend class JunctionPositionReader;

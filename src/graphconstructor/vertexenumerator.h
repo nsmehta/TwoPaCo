@@ -33,6 +33,7 @@ namespace TwoPaCo
 	public:
 		virtual size_t GetVerticesCount() const = 0;
 		virtual int64_t GetId(const std::string & vertex) const = 0;
+		virtual std::pair<int64_t, std::pair<int, int> > GetId2(const std::string & vertex) const = 0;
 		virtual const VertexRollingHashSeed & GetHashSeed() const = 0;
 		virtual std::unique_ptr<ConcurrentBitVector> ReloadBloomFilter() const = 0;
 
@@ -106,6 +107,11 @@ namespace TwoPaCo
 		int64_t GetId(const std::string & vertex) const
 		{
 			return bifStorage_.GetId(vertex.begin());
+		}
+		
+		std::pair<int64_t, std::pair<int, int> > GetId2(const std::string & vertex) const
+		{
+			return bifStorage_.GetId2(vertex.begin());
 		}
 
 		size_t GetVerticesCount() const
@@ -214,6 +220,7 @@ namespace TwoPaCo
 			uint64_t totalFpCount = 0;
 			uint64_t verticesCount = 0;
 			std::ofstream bifurcationTempWrite((tmpDirName + "/bifurcations.bin").c_str(), ios::binary);
+			std::ofstream juncTypeTempWrite((tmpDirName + "/junction_type.bin").c_str(), ios::binary);
 			if (!bifurcationTempWrite)
 			{
 				throw StreamFastaParser::Exception("Can't create a temp file");
@@ -346,7 +353,8 @@ namespace TwoPaCo
 
 				mark = time(0);
 				size_t falsePositives = 0;
-				size_t truePositives = TrueBifurcations(occurenceSet, bifurcationTempWrite, vertexSize_, falsePositives);
+				size_t truePositives = TrueBifurcations(occurenceSet, bifurcationTempWrite, 
+					juncTypeTempWrite, vertexSize_, falsePositives);
 				logStream << time(0) - mark << std::endl;
 				logStream << "True junctions count = " << truePositives << std::endl;
 				logStream << "False junctions count = " << falsePositives << std::endl;
@@ -357,6 +365,7 @@ namespace TwoPaCo
 				verticesCount += truePositives;
 				low = high + 1;
 			}
+			
 
 			if (rounds > 1)
 			{
@@ -366,20 +375,27 @@ namespace TwoPaCo
 			mark = time(0);			
 			std::string bifurcationTempReadName = (tmpDirName + "/bifurcations.bin");
 			bifurcationTempWrite.close();
+			std::string juncTempReadName = (tmpDirName + "/junction_type.bin");
+			juncTypeTempWrite.close();
 			{
 				std::ifstream bifurcationTempRead(bifurcationTempReadName.c_str(), ios::binary);
 				if (!bifurcationTempRead)
 				{
 					throw StreamFastaParser::Exception("Can't open the temp file");
 				}
+				std::ifstream juncTempRead(juncTempReadName.c_str(), ios::binary);
+				if (!juncTempRead)
+				{
+					throw StreamFastaParser::Exception("Can't open the temp file");
+				}
 
-				bifStorage_.Init(bifurcationTempRead, verticesCount, vertexLength, threads);
+				bifStorage_.Init(bifurcationTempRead, juncTempRead, verticesCount, vertexLength, threads);
 			}
 
 			std::remove(bifurcationTempReadName.c_str());
 			logStream << "Reallocating bifurcations time: " << time(0) - mark << std::endl;
-       
-           /* 
+           
+	   /* 
            {
                 // InDegree and OutDegree calculation           
                 std::atomic<uint64_t> occurence;
@@ -442,7 +458,7 @@ namespace TwoPaCo
 			std::atomic<uint64_t> currentPiece;			
 			uint64_t currentStubVertexId = verticesCount + 42;
 			JunctionPositionWriter posWriter(outFileNamePrefix);
-            std::unordered_map<std::string, int64_t> inMap, outMap;
+            		std::unordered_map<std::string, int64_t> inMap, outMap;
 			occurence = currentPiece = 0;
 			{
 				std::vector<std::unique_ptr<tbb::tbb_thread> > workerThread(threads);
@@ -473,8 +489,8 @@ namespace TwoPaCo
 				}
 
 
-				//std::cout << "************ start ******************" << std::endl;
-                uint64_t my_cal_jun_in = 0;
+		//std::cout << "************ start ******************" << std::endl;
+                /*uint64_t my_cal_jun_in = 0;
                 uint64_t my_cal_jun_out = 0; 
                 std::ofstream juncTypeTempWrite((tmpDirName + "/junction_type_indegree.txt").c_str());
                 for (auto& t: inMap)
@@ -495,6 +511,7 @@ namespace TwoPaCo
                     }   
                 }   
                 juncTypeTempWrite_r.close();
+                */
 
                 //std::cout << "Junctions calculated  indegree : " << my_cal_jun_in << " outdegree : " << my_cal_jun_out << std::endl;
 			}
@@ -940,169 +957,6 @@ namespace TwoPaCo
 		}
 
 
-
-
-        class InOutDegreeCalculationWorker
-        {
-            public:
-            InOutDegreeCalculationWorker(size_t vertexLength,
-                TaskQueue & taskQueue,
-                const BifurcationStorage<CAPACITY> & bifStorage,
-                JunctionPositionWriter & writer,
-                std::atomic<uint64_t> & currentPiece,
-                std::atomic<uint64_t> & occurences,
-                uint64_t & currentStubVertexId,
-                tbb::mutex & currentStubVertexMutex,
-                const std::string & tmpDirectory,
-                size_t totalRounds,
-                std::unique_ptr<std::runtime_error> & error,
-                tbb::mutex & errorMutex, tbb::concurrent_queue<TwoPaCo::JunctionPosition> * queue,
-					 std::unordered_map<std::string, int64_t> * inList, std::unordered_map<std::string, int64_t> * outList) : vertexLength(vertexLength), taskQueue(taskQueue), bifStorage(bifStorage),
-                writer(writer), currentPiece(currentPiece), occurences(occurences), tmpDirectory(tmpDirectory),
-                error(error), errorMutex(errorMutex), currentStubVertexId(currentStubVertexId), currentStubVertexMutex(currentStubVertexMutex), totalRounds(totalRounds),
-                queue(queue), inList(inList), outList(outList)
-            {
-
-            }
-
-                     void operator()()
-            {
-                try
-                {
-                    DnaString bitBuf;
-                    std::deque<EdgeResult> result;
-                    ConcurrentBitVector temporaryMask(Task::TASK_SIZE);
-                    ConcurrentBitVector candidateMask(Task::TASK_SIZE);
-                    while (true)
-                    {
-                        Task task;
-                        if (taskQueue.try_pop(task))
-                        {
-                            if (task.start == Task::GAME_OVER)
-                            {
-                                break;
-                            }
-
-                            if (task.str.size() < vertexLength)
-                            {
-                                continue;
-                            }
-
-                            size_t edgeLength = vertexLength + 1;
-                            if (task.str.size() >= vertexLength + 2)
-                            {
-                                try
-                                {
-                                    candidateMask.Reset();
-                                    for (size_t i = 0; i < totalRounds; i++)
-                                    {
-                                        temporaryMask.ReadFromFile(CandidateMaskFileName(tmpDirectory, task.seqId, task.start, i), false);
-                                        candidateMask.MergeOr(temporaryMask);
-                                    }
-                                }
-                                catch (std::runtime_error & err)
-                                {
-                                    ReportError(errorMutex, error, err.what());
-                                }
-
-								size_t taskstart = task.start;
-
-                                EdgeResult currentResult;
-                                currentResult.pieceId = task.piece;
-                                size_t definiteCount = std::count_if(task.str.begin() + 1, task.str.begin() + vertexLength + 1, DnaChar::IsDefinite);
-                                for (size_t pos = 1;; ++pos)
-                                {
-                                    //while (result.size() > 0 && FlushEdgeResults(result, writer, currentPiece, queue, inList, outList));
-                                    int64_t bifId(INVALID_VERTEX);
-                                    assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, DnaChar::IsDefinite));
-                                    if (definiteCount == vertexLength && candidateMask.GetBit(pos))
-                                    {
-                                        bifId = bifStorage.GetId(task.str.begin() + pos);
-                                        if (bifId != INVALID_VERTEX)
-                                        {
-                                            occurences++;
-					      	                //std::string inListKey = std::to_string(task.seqId) + "_" + std::to_string(task.start) 
-                                            //        + "_" + std::to_string(pos);
-                                            std::string inListKey = std::to_string(pos);
-						                    //if key not found
-						                    std::unordered_map<std::string, int64_t>::iterator it = inList->find(inListKey);
-						                    if (it == inList->end()) {
-						                        inList->insert(std::make_pair(inListKey, 1));
-						                    } else {
-						                        it->second++;
-						                    }
-						                    //std::cout << " updating ..... " << pos << std::endl;
-                                            currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId));
-                                        }
-                                    }
-
-                                    if (((task.start == 0 && pos == 1) || (task.isFinal && pos == task.str.size() - vertexLength - 1)) 
-                                            && bifId == INVALID_VERTEX)
-                                    {
-										std::string inListKey = std::to_string(pos);
-                                        //if key not found
-                                        std::unordered_map<std::string, int64_t>::iterator it = inList->find(inListKey);
-                                        if (it == inList->end()) {
-                                            inList->insert(std::make_pair(inListKey, 1)); 
-                                        } else {
-                                            it->second++;
-                                        }    
-                                        //std::cout << " locked updating ..... " << pos << std::endl;
-                                        occurences++;
-                                        currentStubVertexMutex.lock();
-                                        currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, currentStubVertexId++));
-                                        currentStubVertexMutex.unlock();
-                                    }
-
-									if (pos + edgeLength < task.str.size())
-                                    {
-                                        definiteCount += (DnaChar::IsDefinite(task.str[pos + vertexLength]) ? 1 : 0) 
-                                            - (DnaChar::IsDefinite(task.str[pos]) ? 1 : 0);
-                                    }
-                                    else
-                                    {
-                                        break;
-                                    }
-                                }
-
-                            }
-                        }
-                    }
-
-                    /*while (result.size() > 0)
-                    {
-                        FlushEdgeResults(result, writer, currentPiece, queue, inList, outList);
-                    }*/
-                }
-
-				catch (std::runtime_error & e)
-                {
-                    errorMutex.lock();
-                    error.reset(new std::runtime_error(e));
-                    errorMutex.unlock();
-                }
-            }
-
-        private:
-            size_t vertexLength;
-            TaskQueue & taskQueue;
-            uint64_t & currentStubVertexId;
-            const BifurcationStorage<CAPACITY> & bifStorage;
-            JunctionPositionWriter & writer;
-            std::atomic<uint64_t> & currentPiece;
-            std::atomic<uint64_t> & occurences;
-            const std::string & tmpDirectory;
-            std::unique_ptr<std::runtime_error> & error;
-            size_t totalRounds;
-            tbb::mutex & errorMutex;
-            tbb::mutex & currentStubVertexMutex;
-            tbb::concurrent_queue<TwoPaCo::JunctionPosition> * queue;
-            // std::vector<int64_t>  * inList, * outList;
-	        std::unordered_map<std::string, int64_t> * inList, * outList;
-        };
-						
-
-
 		class EdgeConstructionWorker
 		{
 		public:
@@ -1175,49 +1029,22 @@ namespace TwoPaCo
 								for (size_t pos = 1;; ++pos)
 								{
 									while (result.size() > 0 && FlushEdgeResults(result, writer, currentPiece, queue));
+									std::pair<int64_t, std::pair<int, int> > bifRet;
 									int64_t bifId(INVALID_VERTEX);
 									assert(definiteCount == std::count_if(task.str.begin() + pos, task.str.begin() + pos + vertexLength, 
 										DnaChar::IsDefinite));
 									if (definiteCount == vertexLength && candidateMask.GetBit(pos))
 									{
-										bifId = bifStorage.GetId(task.str.begin() + pos);
+										bifRet = bifStorage.GetId2(task.str.begin() + pos);
+										//bifId = bifStorage.GetId(task.str.begin() + pos);
+										bifId = bifRet.first;
 										if (bifId != INVALID_VERTEX)
 										{
+									//std::string key = task.str.substr(task.start + pos, vertexLength);
+									//	std::cout << key << ' ' << bifRet.second.first << ' ' << bifRet.second.second << '\n';
 											occurences++;
-                                            //std::cout << "Input String : " << pos << ' ' << task.str.substr(task.start + pos, vertexLength) << std::endl;
-                                            std::string in_base_str = task.str.substr(task.start + pos, vertexLength - 1);
-                                            std::string out_base_str = task.str.substr(task.start + pos + 1, vertexLength - 1); 
-
-											for (int i = 0; i < DnaChar::LITERAL.size(); i++)
-                                    		{ 
-                                                int64_t in_degree_bif_id = bifStorage.GetInDegree(in_base_str, DnaChar::LITERAL[i]);         
-                                        		if (in_degree_bif_id != INVALID_VERTEX) {
-                                                     //std::cout << "in_degree : " << in_degree_bif_id << std::endl;
-                                                     std::string inKey = std::to_string(task.seqId) + "_" + std::to_string(task.start + pos);
-                                                     std::unordered_map<std::string, int64_t>::iterator it = inMap->find(inKey);
-                                            		if (it == inMap->end()) {
-                                                		inMap->insert(std::make_pair(inKey, 1));
-                                            		} else {
-                                                		it->second++;
-                                            		}	
-                                        		}
-
-                                                int64_t out_degree_bif_id = bifStorage.GetOutDegree(out_base_str, DnaChar::LITERAL[i]);
-                                        		if (out_degree_bif_id != INVALID_VERTEX) {
-                                                     //std::cout << "out_degree : " << out_degree_bif_id << std::endl;
-                                                     std::string outKey = std::to_string(task.seqId) + "_" + std::to_string(task.start + pos);
-                                                     std::unordered_map<std::string, int64_t>::iterator it_r = outMap->find(outKey);
-                                            		if (it_r == outMap->end()) {
-                                                		outMap->insert(std::make_pair(outKey, 1));
-                                            		} else {
-                                                		it_r->second++;
-                                            		}
-	
-                                        		}
-                                    		}
-
-                                            
-                                            currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId));
+                                            						//currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId));
+                                            						currentResult.junction.push_back(JunctionPosition(task.seqId, task.start + pos - 1, bifId, bifRet.second.first, bifRet.second.second));
 										}
 									}
 
@@ -1490,7 +1317,8 @@ namespace TwoPaCo
             */
 		}
 
-		uint64_t TrueBifurcations(const OccurenceSet & occurenceSet, std::ofstream & out, size_t vertexSize, size_t & falsePositives) const
+		uint64_t TrueBifurcations(const OccurenceSet & occurenceSet, std::ofstream & out, 
+			std::ofstream &out_jtype,  size_t vertexSize, size_t & falsePositives) const
 		{
 			uint64_t truePositives = falsePositives = 0;
 			for (auto it = occurenceSet.begin(); it != occurenceSet.end();++it)
@@ -1501,6 +1329,7 @@ namespace TwoPaCo
 					++truePositives;
 					it->GetBase().WriteToFile(out);
 					std::cout << it->GetBase().ToString(vertexSize) << ' ' << it->GetInEdges() << ' ' << it->GetOutEdges() << '\n';
+					out_jtype << it->GetInEdges() << ' ' << it->GetOutEdges() << ' ';
 					if (!out)
 					{
 						throw StreamFastaParser::Exception("Can't write to a temporary file");
