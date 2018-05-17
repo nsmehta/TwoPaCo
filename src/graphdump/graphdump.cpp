@@ -50,6 +50,7 @@ int64_t reservedPath = int64_t(1) << (ID_POWER - 1);
 const int64_t MAX_JUNCTION_ID = int64_t(1) << (ID_POWER - 4);
 const int64_t MAX_SEGMENT_NUMBER = int64_t(1) << ID_POWER;
 std::unordered_map<std::string, int64_t> ump;
+int64_t pathId = 1;
 
 class Segment
 {
@@ -477,6 +478,35 @@ class Gfa2Generator
 };
 
 	template<class G>
+std::string getSegment(int64_t segmentId, std::string::iterator b, std::string::iterator e, G g, std::ostream *os, std::vector<bool> *seen)
+{
+	std::stringstream ss;
+	if (segmentId > 0)
+	{
+		std::copy(b, e, std::ostream_iterator<char>(ss));
+	}
+	else
+	{
+		std::string buf = TwoPaCo::DnaChar::ReverseCompliment(std::string(b, e));
+		std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
+	}
+	std::string seg = ss.str();
+	if (ump.find(seg) == ump.end()) 
+	{
+		ump[seg] = segmentId > 0 ? pathId : -pathId;
+		pathId++;
+	}
+	int64_t newSegmentId = ump[seg];
+	if (!(*seen)[std::abs(newSegmentId)])
+	{   
+		g.Segment(newSegmentId, 0, seg, *os);
+		(*seen)[std::abs(newSegmentId)] = true;
+	}
+	
+	return seg;
+}
+
+	template<class G>
 void GenerateGfaOutput(const std::vector<std::string> & genomes, size_t k, bool prefix, G g,
 		std::string file_name, tbb::concurrent_queue<TwoPaCo::JunctionPosition> *queue, std::atomic<bool> * done)
 {	
@@ -507,6 +537,8 @@ void GenerateGfaOutput(const std::vector<std::string> & genomes, size_t k, bool 
 	//TwoPaCo::JunctionPositionReader reader(inputFileName.c_str());
 	std::vector<bool> seen(MAX_SEGMENT_NUMBER, 0);
 	int64_t previousId = 0;
+	std::string seg, seg2;
+	int newSegmentId, newSegmentId2;
 
 #ifdef _DEBUG
 	std::map<int64_t, std::string> segmentBody;
@@ -515,145 +547,101 @@ void GenerateGfaOutput(const std::vector<std::string> & genomes, size_t k, bool 
 	bool begin_set = (*queue).try_pop(begin);
 	chrReader.NextChr(chr);
 
+
+
+	std::vector<std::vector<TwoPaCo::JunctionPosition>> junc_pos_vectors;
+	junc_pos_vectors.push_back({});
+	std::vector<TwoPaCo::JunctionPosition> start_contigs;
+	std::vector<TwoPaCo::JunctionPosition> end_contigs;
+
 	while (!begin_set) {
 		begin_set = (*queue).try_pop(begin);
 	}
+
+	junc_pos_vectors.back().push_back(begin);
+	start_contigs.push_back(begin);
 
 	// Hello
 	while (!((*done).load(std::memory_order_relaxed)) || !(*queue).empty()) {
 		if (!(*queue).empty()) {
 			(*queue).try_pop(end);
+			
 
 			if (begin.GetChr() == end.GetChr())
-			{       
-				Segment nowSegment(begin, end, chr[begin.GetPos() + k], TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1]));
+			{     
+			junc_pos_vectors.back().push_back(end);
+				/*Segment nowSegment(begin, end, chr[begin.GetPos() + k], TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1]));
+				
 				int64_t segmentId = nowSegment.GetSegmentId();
-				currentPath.push_back(segmentId); 
-				uint64_t segmentSize = end.GetPos() + k - begin.GetPos();
+				//currentPath.push_back(segmentId); 
+				//uint64_t segmentSize = end.GetPos() + k - begin.GetPos();
 				
 				int bin = begin.GetIn(), bout = begin.GetOut(), ein = end.GetIn(), eout = end.GetOut();        
 				int bid = begin.GetId(), eid = end.GetId();			
 				if (bid < 0) std::swap(bin, bout);
 				if (eid < 0) std::swap(ein, eout);
-				std::cout << bid << ": " << bin << ' ' << bout << " - " << eid << ": " << ein << ' ' << eout << '\n';
+				std::cout << "Seg: " << begin.GetPos() + k << ' ' << chr[begin.GetPos() + k] << ' ' << end.GetPos()-1 << ' ' << TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1]) << '\n';
+				std::cout << "[" << bid << "] " << begin.GetPos() << '\t' << bin << ' ' << bout << '\n';
+				std::cout << "[" << eid << "] " << end.GetPos() << '\t' << ein << ' ' << eout << '\n';;
 				
-				if (bin == 1 && bout == 1 && ein == 1 && eout > 1) {
-puts("1");
-					if (!seen[Abs(segmentId)])
-					{   
-						std::stringstream ss;    
-						if (segmentId > 0)
-						{   
-							std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(ss));
-						}   
-						else
-						{   
-							std::string buf = TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k));
-							std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
-						} 
-						g.Segment(segmentId, segmentSize, ss.str(), os);
-						seen[Abs(segmentId)] = true;
-					} 		
+				if (bin == 1 && bout == 1 && ein == 1 && eout > 1) 
+				{
+//puts("1");
+					seg = getSegment(segmentId, chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, g, &os, &seen);
+					newSegmentId = ump[seg];
+					currentPath.push_back(newSegmentId);
 				}
 
-				else if (bin == 1 && bout > 1 && ein > 1 && eout == 1) {
-puts("2");
-					if (!seen[Abs(segmentId)])
-					{   
-						std::stringstream ss;    
-						if (segmentId > 0)
-						{   
-							std::copy(chr.begin() + begin.GetPos() + 1, chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(ss));
-						}   
-						else
-						{   
-							std::string buf = TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos() + 1, chr.begin() + end.GetPos() + k));
-							std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
-						} 
-						g.Segment(segmentId, segmentSize, ss.str(), os);
-						seen[Abs(segmentId)] = true;
-					} 		
+				else if (bin == 1 && bout > 1 && ein > 1 && eout == 1) 
+				{
+//puts("2");
+					seg = getSegment(segmentId, chr.begin() + begin.GetPos() + 1, chr.begin() + end.GetPos() + k, g, &os, &seen);
+					newSegmentId = ump[seg];
+					currentPath.push_back(newSegmentId);
+						
 				}
-
-				else if (bin > 1 && bout == 1 && ein == 1 && eout == 1) { 
-puts("3");
-					if (!seen[Abs(segmentId)])
-					{   
-						std::stringstream ss;    
-						if (segmentId > 0)
-						{   
-							std::copy(chr.begin() + begin.GetPos() + 1, chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(ss));
-						}   
-						else
-						{   
-							std::string buf = TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos() + 1, chr.begin() + end.GetPos() + k));
-							std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
-						} 
-						g.Segment(segmentId, segmentSize, ss.str(), os);
-						seen[Abs(segmentId)] = true;
-					} 		
+				else if (bin > 1 && bout == 1 && ein == 1 && eout == 1) 
+				{ 
+//puts("3");
+					seg = getSegment(segmentId, chr.begin() + begin.GetPos() + 1, chr.begin() + end.GetPos() + k, g, &os, &seen);
+					newSegmentId = ump[seg];
+					currentPath.push_back(newSegmentId);
 				}
 				
-				else if (bin == 1 && bout == 1 && ein > 1 && eout > 1) {
-puts("4");
-					if (!seen[Abs(segmentId)])
-					{   
-						std::stringstream ss;    
-						if (segmentId > 0)
-						{   
-							std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k - 1, std::ostream_iterator<char>(ss));
-						}   
-						else
-						{   
-							std::string buf = TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k - 1));
-							std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
-						} 
-						g.Segment(segmentId, segmentSize, ss.str(), os);
-						seen[Abs(segmentId)] = true;	
-					}				
+				else if (bin == 1 && bout == 1 && ein > 1 && eout > 1) 
+				{
+//puts("4");
+					seg = getSegment(segmentId, chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k - 1, g, &os, &seen);
+					newSegmentId = ump[seg];
+					currentPath.push_back(newSegmentId);
 					// add complex node: k (simply k from start of end)
-					std::stringstream ss2;	
-					std::copy(chr.begin() + end.GetPos(), chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(ss2));
-					std::string key = ss2.str();
-					int64_t addSegmentId;
-					if (ump.find(key) == ump.end()) 
-					{
-						Segment addSegment(reservedPath);
-						reservedPath++;
-						addSegmentId = addSegment.GetSegmentId();
-						ump[key] = addSegmentId;
-					}
-					addSegmentId = ump[key];
-					currentPath.push_back(addSegmentId);
-					if (!seen[addSegmentId]) 
-					{
-						g.Segment(addSegmentId, k, ss2.str(), os);
-					}
-					seen[addSegmentId] = true;	
+					seg2 = getSegment(42, chr.begin() + end.GetPos(), chr.begin() + end.GetPos() + k, g, &os, &seen);	// just a rnd +ve segment id
+					newSegmentId2 = ump[seg2];
+					currentPath.push_back(newSegmentId2);
 				}
 
-				else if (bin > 1 && bout > 1 && ein == 1 && eout == 1) {
-puts("5");
-					if (!seen[Abs(segmentId)])
-					{   
-						std::stringstream ss;    
-						if (segmentId > 0)
-						{   
-							std::copy(chr.begin() + begin.GetPos() + 1, chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(ss));
-						}   
-						else
-						{   
-							std::string buf = TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos() + 1, chr.begin() + end.GetPos() + k));
-							std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
-						} 
-						g.Segment(segmentId, segmentSize, ss.str(), os);
-						seen[Abs(segmentId)] = true;
-					} 		
+				else if (bin > 1 && bout > 1 && ein == 1 && eout == 1) 
+				{
+//puts("5");
+					seg = getSegment(segmentId, chr.begin() + begin.GetPos() + 1, chr.begin() + end.GetPos() + k, g, &os, &seen);
+					newSegmentId = ump[seg];
+					currentPath.push_back(newSegmentId);
 				}
-				else {
-					//std::cout << begin.Getin() << ' ' << begin.GetOut() << ' ' << end.GetIn() << ' ' << end.GetOut() << '\n';
+				else 
+				{
 					std::cout << "Shouldn't be printed\n";
-				}
+					std::stringstream ss;       
+					if (segmentId > 0)
+					{
+						std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(ss));
+					}
+					else
+					{
+						std::string buf = TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k));
+						std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
+					}
+					//std::cout << ss.str() << " (" << bid << "): " << bin << ' ' << bout << " - (" << eid << "): " << ein << ' ' << eout << '\n';
+				}*/
 				/*
 				Segment nowSegment(begin, end, chr[begin.GetPos() + k], TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1]));
 				int64_t segmentId = nowSegment.GetSegmentId();
@@ -666,7 +654,6 @@ puts("5");
 					if (segmentId > 0)
 					{
 						std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(ss));
-
 					}
 					else
 					{
@@ -687,18 +674,23 @@ puts("5");
 				if (prevSegmentId != NO_SEGMENT)
 				{
 					g.Edge(prevSegmentId, prevSegmentSize, segmentId, segmentSize, k, os);
-				}*/                             
+				}                             
 
 				prevSegmentId = segmentId;
-				prevSegmentSize = segmentSize;
+				prevSegmentSize = segmentSize;*/
 				begin = end;
 			}
 			else
 			{
-				g.FlushPath(currentPath, chrSegmentId[seqId], k, os);
+			        //std::cout << "End position for transcript : " << begin.GetPos() << " - " << begin.GetChr() << "\n";
+				end_contigs.push_back(junc_pos_vectors.back().back());
+				junc_pos_vectors.push_back({});
+				//g.FlushPath(currentPath, chrSegmentId[seqId], k, os);
 				chrReader.NextChr(chr);
-				prevSegmentId = 0;
+				//prevSegmentId = 0;
 				begin = end;
+			     	junc_pos_vectors.back().push_back(begin);
+				start_contigs.push_back(begin);
 
 				if (begin.GetChr() != ++seqId)
 				{
@@ -708,12 +700,36 @@ puts("5");
 
 		}
 	}
+	end_contigs.push_back(junc_pos_vectors.back().back());
 
 	// Hello
 
 
 	g.FlushPath(currentPath, chrSegmentId[seqId], k, os);
 	fb.close();
+
+	for (int i = 0; i < start_contigs.size(); i++) {
+		std::cout << start_contigs[i].GetPos() << ' ' << end_contigs[i].GetPos() << '\n';
+	}
+	for (std::vector <TwoPaCo::JunctionPosition> path: junc_pos_vectors) {
+		for (TwoPaCo::JunctionPosition jpos: path) {
+			std::cout << jpos.GetPos() << ' ';
+			// create seg, get segid
+			// check if it belongs in start, end (efficiently)
+			// true: don't change
+			// false:
+			// begin = jpos, end = jpos+1
+			// cin = bin, cout = eout
+			// case: needs to be updated
+			// check if already updated in global map (another path)
+			// check if present in global set: do nothing
+			// otherwise insert in set: 
+			// set (key: string, val: segid) - to handle dups
+			// currentPath update: (simple: cur, complex: cur, new)
+		}
+		// g.flush(currentPath)
+		std::cout << '\n';
+	}
 }
 
 	template<class It>

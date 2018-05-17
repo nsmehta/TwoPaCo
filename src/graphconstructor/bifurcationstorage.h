@@ -65,7 +65,7 @@ namespace TwoPaCo
 				inDeg = inDeg_c - '0';
 				outDeg = outDeg_c - '0';
 				bifurcationKey_.push_back(std::make_pair(buf, std::make_pair(inDeg, outDeg)));
-				std::cout << stringBuf << ' ' << inDeg << ' ' << outDeg << '\n';
+				//std::cout << stringBuf << ' ' << inDeg << ' ' << outDeg << '\n';
 				for (HashFunctionPtr & ptr : hashFunction_)
 				{
 					uint64_t hf = ptr->hash(stringBuf);

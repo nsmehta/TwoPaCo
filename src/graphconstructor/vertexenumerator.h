@@ -1328,7 +1328,7 @@ namespace TwoPaCo
 				{
 					++truePositives;
 					it->GetBase().WriteToFile(out);
-					std::cout << it->GetBase().ToString(vertexSize) << ' ' << it->GetInEdges() << ' ' << it->GetOutEdges() << '\n';
+					//std::cout << it->GetBase().ToString(vertexSize) << ' ' << it->GetInEdges() << ' ' << it->GetOutEdges() << '\n';
 					out_jtype << it->GetInEdges() << ' ' << it->GetOutEdges() << ' ';
 					if (!out)
 					{
