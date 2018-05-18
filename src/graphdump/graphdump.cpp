@@ -290,6 +290,7 @@ class BinaryGenerator
 
 		void FlushPath(std::vector<int64_t> & currentPath, const std::string & seqId, size_t k, std::ostream & out) const
 		{
+
 			if (currentPath.size() > 0)
 			{
 				/*out << "P\t" << seqId << '\t';
@@ -502,9 +503,27 @@ std::string getSegment(int64_t segmentId, std::string::iterator b, std::string::
 		g.Segment(newSegmentId, 0, seg, *os);
 		(*seen)[std::abs(newSegmentId)] = true;
 	}
-	
+
 	return seg;
 }
+
+
+bool isModifiable(int segmentId, std::vector<int64_t> *start_contigs, std::vector<int64_t> *end_contigs) {
+	for (int segId : *start_contigs) {
+		if (std::abs(segmentId) == std::abs(segId)) {
+			return false;
+		}
+	}
+
+	for (int segId : *start_contigs) {     
+		if (std::abs(segmentId) == std::abs(segId)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 
 	template<class G>
 void GenerateGfaOutput(const std::vector<std::string> & genomes, size_t k, bool prefix, G g,
@@ -537,8 +556,6 @@ void GenerateGfaOutput(const std::vector<std::string> & genomes, size_t k, bool 
 	//TwoPaCo::JunctionPositionReader reader(inputFileName.c_str());
 	std::vector<bool> seen(MAX_SEGMENT_NUMBER, 0);
 	int64_t previousId = 0;
-	std::string seg, seg2;
-	int newSegmentId, newSegmentId2;
 
 #ifdef _DEBUG
 	std::map<int64_t, std::string> segmentBody;
@@ -551,31 +568,38 @@ void GenerateGfaOutput(const std::vector<std::string> & genomes, size_t k, bool 
 
 	std::vector<std::vector<TwoPaCo::JunctionPosition>> junc_pos_vectors;
 	junc_pos_vectors.push_back({});
-	std::vector<TwoPaCo::JunctionPosition> start_contigs;
-	std::vector<TwoPaCo::JunctionPosition> end_contigs;
+	std::vector<int64_t> start_contigs;
+	std::vector<int64_t> end_contigs;
+	bool first_contig = true;
 
 	while (!begin_set) {
 		begin_set = (*queue).try_pop(begin);
 	}
 
 	junc_pos_vectors.back().push_back(begin);
-	start_contigs.push_back(begin);
+
 
 	// Hello
 	while (!((*done).load(std::memory_order_relaxed)) || !(*queue).empty()) {
 		if (!(*queue).empty()) {
 			(*queue).try_pop(end);
-			
+
 
 			if (begin.GetChr() == end.GetChr())
 			{     
-			junc_pos_vectors.back().push_back(end);
+				junc_pos_vectors.back().push_back(end);
+				Segment nowSegment(begin, end, chr[begin.GetPos() + k], TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1]));
+				if (first_contig) {
+					first_contig = false;
+					start_contigs.push_back(nowSegment.GetSegmentId());	    
+				}
+
 				/*Segment nowSegment(begin, end, chr[begin.GetPos() + k], TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1]));
-				
-				int64_t segmentId = nowSegment.GetSegmentId();
+
+				  int64_t segmentId = nowSegment.GetSegmentId();
 				//currentPath.push_back(segmentId); 
 				//uint64_t segmentSize = end.GetPos() + k - begin.GetPos();
-				
+
 				int bin = begin.GetIn(), bout = begin.GetOut(), ein = end.GetIn(), eout = end.GetOut();        
 				int bid = begin.GetId(), eid = end.GetId();			
 				if (bid < 0) std::swap(bin, bout);
@@ -583,114 +607,115 @@ void GenerateGfaOutput(const std::vector<std::string> & genomes, size_t k, bool 
 				std::cout << "Seg: " << begin.GetPos() + k << ' ' << chr[begin.GetPos() + k] << ' ' << end.GetPos()-1 << ' ' << TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1]) << '\n';
 				std::cout << "[" << bid << "] " << begin.GetPos() << '\t' << bin << ' ' << bout << '\n';
 				std::cout << "[" << eid << "] " << end.GetPos() << '\t' << ein << ' ' << eout << '\n';;
-				
+
 				if (bin == 1 && bout == 1 && ein == 1 && eout > 1) 
 				{
-//puts("1");
-					seg = getSegment(segmentId, chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, g, &os, &seen);
-					newSegmentId = ump[seg];
-					currentPath.push_back(newSegmentId);
+				//puts("1");
+				seg = getSegment(segmentId, chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, g, &os, &seen);
+				newSegmentId = ump[seg];
+				currentPath.push_back(newSegmentId);
 				}
 
 				else if (bin == 1 && bout > 1 && ein > 1 && eout == 1) 
 				{
-//puts("2");
-					seg = getSegment(segmentId, chr.begin() + begin.GetPos() + 1, chr.begin() + end.GetPos() + k, g, &os, &seen);
-					newSegmentId = ump[seg];
-					currentPath.push_back(newSegmentId);
-						
+				//puts("2");
+				seg = getSegment(segmentId, chr.begin() + begin.GetPos() + 1, chr.begin() + end.GetPos() + k, g, &os, &seen);
+				newSegmentId = ump[seg];
+				currentPath.push_back(newSegmentId);
+
 				}
 				else if (bin > 1 && bout == 1 && ein == 1 && eout == 1) 
 				{ 
-//puts("3");
-					seg = getSegment(segmentId, chr.begin() + begin.GetPos() + 1, chr.begin() + end.GetPos() + k, g, &os, &seen);
-					newSegmentId = ump[seg];
-					currentPath.push_back(newSegmentId);
+				//puts("3");
+				seg = getSegment(segmentId, chr.begin() + begin.GetPos() + 1, chr.begin() + end.GetPos() + k, g, &os, &seen);
+				newSegmentId = ump[seg];
+				currentPath.push_back(newSegmentId);
 				}
-				
+
 				else if (bin == 1 && bout == 1 && ein > 1 && eout > 1) 
 				{
-//puts("4");
-					seg = getSegment(segmentId, chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k - 1, g, &os, &seen);
-					newSegmentId = ump[seg];
-					currentPath.push_back(newSegmentId);
-					// add complex node: k (simply k from start of end)
-					seg2 = getSegment(42, chr.begin() + end.GetPos(), chr.begin() + end.GetPos() + k, g, &os, &seen);	// just a rnd +ve segment id
-					newSegmentId2 = ump[seg2];
-					currentPath.push_back(newSegmentId2);
+				//puts("4");
+				seg = getSegment(segmentId, chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k - 1, g, &os, &seen);
+				newSegmentId = ump[seg];
+				currentPath.push_back(newSegmentId);
+				// add complex node: k (simply k from start of end)
+				seg2 = getSegment(42, chr.begin() + end.GetPos(), chr.begin() + end.GetPos() + k, g, &os, &seen);	// just a rnd +ve segment id
+				newSegmentId2 = ump[seg2];
+				currentPath.push_back(newSegmentId2);
 				}
 
 				else if (bin > 1 && bout > 1 && ein == 1 && eout == 1) 
 				{
-//puts("5");
-					seg = getSegment(segmentId, chr.begin() + begin.GetPos() + 1, chr.begin() + end.GetPos() + k, g, &os, &seen);
-					newSegmentId = ump[seg];
-					currentPath.push_back(newSegmentId);
+				//puts("5");
+				seg = getSegment(segmentId, chr.begin() + begin.GetPos() + 1, chr.begin() + end.GetPos() + k, g, &os, &seen);
+				newSegmentId = ump[seg];
+				currentPath.push_back(newSegmentId);
 				}
 				else 
 				{
-					std::cout << "Shouldn't be printed\n";
-					std::stringstream ss;       
-					if (segmentId > 0)
-					{
-						std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(ss));
-					}
-					else
-					{
-						std::string buf = TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k));
-						std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
-					}
-					//std::cout << ss.str() << " (" << bid << "): " << bin << ' ' << bout << " - (" << eid << "): " << ein << ' ' << eout << '\n';
-				}*/
-				/*
-				Segment nowSegment(begin, end, chr[begin.GetPos() + k], TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1]));
-				int64_t segmentId = nowSegment.GetSegmentId();
-				currentPath.push_back(segmentId); 
-				uint64_t segmentSize = end.GetPos() + k - begin.GetPos();
-				if (!seen[Abs(segmentId)])
+				std::cout << "Shouldn't be printed\n";
+				std::stringstream ss;       
+				if (segmentId > 0)
 				{
-					//std::cout << "S\t" << Abs(segmentId) << "\t";
-					std::stringstream ss;       
-					if (segmentId > 0)
-					{
-						std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(ss));
-					}
-					else
-					{
-						std::string buf = TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k));
-						std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
-					}
-
-					//std::cout << "Test junct " << begin.GetPos() << " : " << begin.GetIn() << ' ' << begin.GetOut() << ' ' << segmentId << std::endl;
-					std::cout << begin.GetPos() << ' ' << end.GetPos() << '\n';
-					std::cout << ss.str() << ' ' << begin.GetIn() << ' ' << begin.GetOut() << " - " << end.GetIn() << ' ' << end.GetOut() << '\n';
-					g.Segment(segmentId, segmentSize, ss.str(), os);
-					seen[Abs(segmentId)] = true;
+				std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(ss));
 				}
-
-				g.Occurrence(segmentId, segmentSize, chrSegmentId[seqId], chrSegmentLength[seqId],
-						begin.GetPos(), end.GetPos(), k, os);
-
-				if (prevSegmentId != NO_SEGMENT)
+				else
 				{
-					g.Edge(prevSegmentId, prevSegmentSize, segmentId, segmentSize, k, os);
-				}                             
-
-				prevSegmentId = segmentId;
-				prevSegmentSize = segmentSize;*/
-				begin = end;
+				std::string buf = TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k));
+				std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
+				}
+				//std::cout << ss.str() << " (" << bid << "): " << bin << ' ' << bout << " - (" << eid << "): " << ein << ' ' << eout << '\n';
+			}*/
+			/*
+			   Segment nowSegment(begin, end, chr[begin.GetPos() + k], TwoPaCo::DnaChar::ReverseChar(chr[end.GetPos() - 1]));
+			   int64_t segmentId = nowSegment.GetSegmentId();
+			   currentPath.push_back(segmentId); 
+			   uint64_t segmentSize = end.GetPos() + k - begin.GetPos();
+			   if (!seen[Abs(segmentId)])
+			   {
+			//std::cout << "S\t" << Abs(segmentId) << "\t";
+			std::stringstream ss;       
+			if (segmentId > 0)
+			{
+			std::copy(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k, std::ostream_iterator<char>(ss));
 			}
 			else
 			{
-			        //std::cout << "End position for transcript : " << begin.GetPos() << " - " << begin.GetChr() << "\n";
-				end_contigs.push_back(junc_pos_vectors.back().back());
+			std::string buf = TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin.GetPos(), chr.begin() + end.GetPos() + k));
+			std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
+			}
+
+			//std::cout << "Test junct " << begin.GetPos() << " : " << begin.GetIn() << ' ' << begin.GetOut() << ' ' << segmentId << std::endl;
+			std::cout << begin.GetPos() << ' ' << end.GetPos() << '\n';
+			std::cout << ss.str() << ' ' << begin.GetIn() << ' ' << begin.GetOut() << " - " << end.GetIn() << ' ' << end.GetOut() << '\n';
+			g.Segment(segmentId, segmentSize, ss.str(), os);
+			seen[Abs(segmentId)] = true;
+			}
+
+			g.Occurrence(segmentId, segmentSize, chrSegmentId[seqId], chrSegmentLength[seqId],
+			begin.GetPos(), end.GetPos(), k, os);
+
+			if (prevSegmentId != NO_SEGMENT)
+			{
+			g.Edge(prevSegmentId, prevSegmentSize, segmentId, segmentSize, k, os);
+			}                             
+
+			prevSegmentId = segmentId;
+			prevSegmentSize = segmentSize;*/
+			begin = end;
+			previousId = nowSegment.GetSegmentId();
+			}
+			else
+			{
+				first_contig = true;
+				//std::cout << "End position for transcript : " << begin.GetPos() << " - " << begin.GetChr() << "\n";
+				end_contigs.push_back(previousId);
 				junc_pos_vectors.push_back({});
 				//g.FlushPath(currentPath, chrSegmentId[seqId], k, os);
 				chrReader.NextChr(chr);
 				//prevSegmentId = 0;
 				begin = end;
-			     	junc_pos_vectors.back().push_back(begin);
-				start_contigs.push_back(begin);
+				junc_pos_vectors.back().push_back(begin);
 
 				if (begin.GetChr() != ++seqId)
 				{
@@ -700,21 +725,108 @@ void GenerateGfaOutput(const std::vector<std::string> & genomes, size_t k, bool 
 
 		}
 	}
-	end_contigs.push_back(junc_pos_vectors.back().back());
+
+	end_contigs.push_back(previousId);
+	//end_contigs.push_back(junc_pos_vectors.back().back());
 
 	// Hello
 
 
-	g.FlushPath(currentPath, chrSegmentId[seqId], k, os);
-	fb.close();
+	//g.FlushPath(currentPath, chrSegmentId[seqId], k, os);
+	//fb.close();
 
 	for (int i = 0; i < start_contigs.size(); i++) {
-		std::cout << start_contigs[i].GetPos() << ' ' << end_contigs[i].GetPos() << '\n';
+		std::cout << "start " << start_contigs[i] << " end " << end_contigs[i] << '\n';
 	}
-	for (std::vector <TwoPaCo::JunctionPosition> path: junc_pos_vectors) {
+
+	TwoPaCo::JunctionPosition begin_n, end_n;
+	bool first = true;
+	seqId = NO_SEGMENT;
+	std::map<std::string, std::vector<int64_t>> new_contig_map;
+
+	TwoPaCo::ChrReader chrReader1(genomes);
+	chrReader1.NextChr(chr);
+
+        for (std::vector <TwoPaCo::JunctionPosition> path: junc_pos_vectors) {
+            for (TwoPaCo::JunctionPosition jpos : path) {
+                if (first) {
+                    begin_n = jpos;
+                    end_n = jpos;
+                    first = false;
+                    continue;
+                }
+                begin_n = end_n;
+                end_n = jpos;
+	        std::cout << begin_n.GetPos() << " - " << end_n.GetPos() << " ";
+
+                Segment nowSegment(begin_n, end_n, chr[begin_n.GetPos() + k], TwoPaCo::DnaChar::ReverseChar(chr[end_n.GetPos() - 1]));
+		int64_t segmentId = nowSegment.GetSegmentId();
+		currentPath.push_back(segmentId);
+		uint64_t segmentSize = end_n.GetPos() + k - begin_n.GetPos();
+
+		if (!seen[Abs(segmentId)])
+		    {
+			//std::cout << "S\t" << Abs(segmentId) << "\t";
+			std::stringstream ss;					
+			if (segmentId > 0)
+			    {
+			        std::copy(chr.begin() + begin_n.GetPos(), chr.begin() + end_n.GetPos() + k, std::ostream_iterator<char>(ss));
+                            }
+			else
+			    {
+			        std::string buf = TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin_n.GetPos(), chr.begin() + end_n.GetPos() + k));
+				std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
+			    }
+
+			g.Segment(segmentId, segmentSize, ss.str(), os);
+			seen[Abs(segmentId)] = true;
+		   }
+
+
+
+            }
+            first = true;
+            g.FlushPath(currentPath, chrSegmentId[seqId], k, os);
+            chrReader1.NextChr(chr);
+            ++seqId;
+	    std::cout << "\n";
+        }
+
+
+	/* for (std::vector <TwoPaCo::JunctionPosition> path: junc_pos_vectors) {
 		for (TwoPaCo::JunctionPosition jpos: path) {
-			std::cout << jpos.GetPos() << ' ';
-			// create seg, get segid
+			if (first) {
+				begin_n = jpos;
+				end_n = jpos;
+				first = false;
+				continue;
+			}
+			begin_n = end_n;
+			end_n = jpos;
+
+			Segment nowSegment(begin_n, end_n, chr[begin_n.GetPos() + k], TwoPaCo::DnaChar::ReverseChar(chr[end_n.GetPos() - 1]));
+			int64_t segmentId = nowSegment.GetSegmentId();
+
+			currentPath.push_back(segmentId); 
+			uint64_t segmentSize = end_n.GetPos() + k - begin_n.GetPos();
+			if (!seen[Abs(segmentId)])
+			{
+				//std::cout << "S\t" << Abs(segmentId) << "\t";
+				std::stringstream ss;       
+				if (segmentId > 0)
+				{
+					std::copy(chr.begin() + begin_n.GetPos(), chr.begin() + end_n.GetPos() + k, std::ostream_iterator<char>(ss));
+				}
+				else
+				{
+					std::string buf = TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin_n.GetPos(), chr.begin() + end_n.GetPos() + k));
+					std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
+				}
+
+				g.Segment(segmentId, segmentSize, ss.str(), os);
+				seen[Abs(segmentId)] = true;
+			}
+
 			// check if it belongs in start, end (efficiently)
 			// true: don't change
 			// false:
@@ -727,9 +839,18 @@ void GenerateGfaOutput(const std::vector<std::string> & genomes, size_t k, bool 
 			// set (key: string, val: segid) - to handle dups
 			// currentPath update: (simple: cur, complex: cur, new)
 		}
+		first = true;
+		g.FlushPath(currentPath, chrSegmentId[seqId], k, os);
+		chrReader.NextChr(chr);
+                //begin_n = end_n;
+                //seqId++;
+		if (begin.GetChr() != ++seqId) {
+		    throw std::runtime_error("The input is corrupted");
+	        } 
 		// g.flush(currentPath)
 		std::cout << '\n';
-	}
+	}*/
+	fb.close();
 }
 
 	template<class It>
