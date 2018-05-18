@@ -819,6 +819,32 @@ void GenerateGfaOutput(const std::vector<std::string> & genomes, size_t k, bool 
 
                     } else {
 
+			// Complex Junction -- need to discuss ---- removed 1 from front nd 1 from last assuming contig size > 2
+			std::stringstream ss;
+                        if (segmentId > 0)
+                        {
+                            std::copy(chr.begin() + begin_n.GetPos() + 1, chr.begin() + end_n.GetPos() + k - 1, std::ostream_iterator<char>(ss));
+                        }
+                        else
+                        {
+                            std::string buf = TwoPaCo::DnaChar::ReverseCompliment(std::string(chr.begin() + begin_n.GetPos() + 1, chr.begin() + end_n.GetPos() + k - 1));
+                            std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(ss));
+                        }
+
+                        std::string new_seg = ss.str();
+			uint64_t new_segment_id = segmentId > 0 ? pathId : -pathId;
+                        pathId++;
+
+                        segment_mapping[std::abs(segmentId)].push_back(new_segment_id);
+                        currentPath.push_back(new_segment_id);
+                        uint64_t segmentSize = end_n.GetPos() + k - begin_n.GetPos();
+
+                        if (!seen[Abs(segmentId)])
+                        {
+                                g.Segment(new_segment_id, segmentSize, new_seg, os);
+                                seen[Abs(segmentId)] = true;
+                        }
+
                     }
 
 		} else {
