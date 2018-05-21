@@ -1,0 +1,13 @@
+H	VN:Z:1.0
+S	1	*	UR:Z:complex.fa
+S	2	*	UR:Z:complex.fa
+S	3	*	UR:Z:complex.fa
+S	4	*	UR:Z:complex.fa
+S	19	TCATC
+S	26	ATCGG
+P	1	19+,26+	*
+S	27	ATCTA
+P	2	19+,27+	*
+S	11	CAATC
+P	3	11+,26+	*
+P	4	11+,27+	*

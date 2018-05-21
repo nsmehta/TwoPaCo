@@ -1,0 +1,54 @@
+H	VN:Z:1.0
+S	1	*	UR:Z:tricky.fa
+S	2	*	UR:Z:tricky.fa
+S	3	*	UR:Z:tricky.fa
+S	4	*	UR:Z:tricky.fa
+S	5	*	UR:Z:tricky.fa
+S	28	GGCACA
+C	28	-	1	+	1
+S	9	AGGCAC
+C	9	-	1	+	2
+L	28	-	9	-	5M
+S	15	TGCCTTATCA
+C	15	+	1	+	7
+L	9	-	15	+	5M
+S	23	TATCAT
+C	23	+	1	+	8
+L	15	+	23	+	5M
+P	1	28-,9-,15+,23+	*
+C	28	-	2	+	1
+S	17	TGATACGGCAC
+C	17	-	2	+	7
+L	28	-	17	-	5M
+C	23	+	2	+	8
+L	17	-	23	+	5M
+P	2	28-,17-,23+	*
+C	28	-	3	+	1
+S	18	TGATAGGGCAC
+C	18	-	3	+	7
+L	28	-	18	-	5M
+C	23	+	3	+	8
+L	18	-	23	+	5M
+P	3	28-,18-,23+	*
+S	12	TGCCTAA
+C	12	-	4	+	2
+C	9	+	4	+	3
+L	12	-	9	+	5M
+C	28	+	4	+	4
+L	9	+	28	+	5M
+S	36	GCACAAAT
+C	36	+	4	+	7
+L	28	+	36	+	5M
+S	41	CAAATC
+C	41	+	4	+	8
+L	36	+	41	+	5M
+P	4	12-,9+,28+,36+,41+	*
+S	24	GTGCCAAA
+C	24	-	5	+	3
+C	28	+	5	+	4
+L	24	-	28	+	5M
+C	36	+	5	+	7
+L	28	+	36	+	5M
+C	41	+	5	+	8
+L	36	+	41	+	5M
+P	5	24-,28+,36+,41+	*

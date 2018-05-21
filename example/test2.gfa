@@ -1,0 +1,7 @@
+H	VN:Z:1.0
+S	1	*	UR:Z:test2.fa
+S	2	*	UR:Z:test2.fa
+S	1	GCA
+P	1	1+	*
+S	2	CCA
+P	2	2+	*

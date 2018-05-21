@@ -1,0 +1,25 @@
+H	VN:Z:1.0
+S	1	*	UR:Z:complex.fa
+S	2	*	UR:Z:complex.fa
+S	3	*	UR:Z:complex.fa
+S	4	*	UR:Z:complex.fa
+S	15	TCATC
+C	15	+	1	+	2
+S	26	ATCGG
+C	26	+	1	+	4
+L	15	+	26	+	3M
+P	1	15+,26+	*
+C	15	+	2	+	2
+S	20	TAGAT
+C	20	-	2	+	4
+L	15	+	20	-	3M
+P	2	15+,20-	*
+S	31	GATTG
+C	31	-	3	+	2
+C	26	+	3	+	4
+L	31	-	26	+	3M
+P	3	31-,26+	*
+C	31	-	4	+	2
+C	20	-	4	+	4
+L	31	-	20	-	3M
+P	4	31-,20-	*

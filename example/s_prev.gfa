@@ -1,0 +1,27 @@
+H	VN:Z:1.0
+S	1	*	UR:Z:small.fa
+S	2	*	UR:Z:small.fa
+S	3	*	UR:Z:small.fa
+S	13	TGTGCC
+C	13	+	1	+	1
+S	20	TGATAAGGCAC
+C	20	-	1	+	7
+L	13	+	20	-	5M
+S	19	TATCAT
+C	19	+	1	+	8
+L	20	-	19	+	5M
+P	1	13+,20-,19+	*
+C	13	+	2	+	1
+S	21	TGATACGGCAC
+C	21	-	2	+	7
+L	13	+	21	-	5M
+C	19	+	2	+	8
+L	21	-	19	+	5M
+P	2	13+,21-,19+	*
+C	13	+	3	+	1
+S	22	TGATAGGGCAC
+C	22	-	3	+	7
+L	13	+	22	-	5M
+C	19	+	3	+	8
+L	22	-	19	+	5M
+P	3	13+,22-,19+	*
