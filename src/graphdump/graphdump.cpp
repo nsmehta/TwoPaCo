@@ -50,7 +50,7 @@ int64_t reservedPath = int64_t(1) << (ID_POWER - 1);
 const int64_t MAX_JUNCTION_ID = int64_t(1) << (ID_POWER - 4);
 const int64_t MAX_SEGMENT_NUMBER = int64_t(1) << ID_POWER;
 std::unordered_map<std::string, int64_t> ump;
-int64_t pathId = 9999;
+int64_t pathId = 99999;
 
 class Segment
 {
@@ -1084,7 +1084,7 @@ void GenerateGfaOutput(const std::vector<std::string> & genomes, size_t k, bool 
 			}
 			first = true;
 			chrReader1.NextChr(chr);
-			std::cout << "\n";
+			//std::cout << "\n";
 		}
 
 	}
@@ -1131,7 +1131,7 @@ void GenerateGfaOutput(const std::vector<std::string> & genomes, size_t k, bool 
 
 			//std::cout << "Pos " << ss.str() << " "<< begin_n.GetPos() << " - " << end_n.GetPos() << "\n ";		
 			//std::cout << "JPos Degree - " << bin << " - " << bout << ", "<<  ein << " - " << eout << "\n ";
-			std::cout << "Contig Degree - " << ss.str() << " "<< indegree[std::abs(segmentId)] << " - " << outdegree[std::abs(segmentId)] << "\n ";
+			//std::cout << "Contig Degree - " << ss.str() << " "<< indegree[std::abs(segmentId)] << " - " << outdegree[std::abs(segmentId)] << "\n ";
 
 
 			// Old logic
@@ -1171,7 +1171,7 @@ void GenerateGfaOutput(const std::vector<std::string> & genomes, size_t k, bool 
 		chrReader1.NextChr(chr);
 		last_seen_seg = 0;
 		++seqId;
-		std::cout << "\n";
+		//std::cout << "\n";
 	}
 
 	fb.close();
