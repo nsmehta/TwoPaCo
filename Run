@@ -10,3 +10,13 @@ cd TwoPaCo
 ./build/graphconstructor/twopaco -f 20 -k 11 example/example.fa -m out.bin -l binary
 ./build/graphconstructor/twopaco -f 20 -k 11 example/example.fa -m out.gfa -l gfa1
 ./build/graphconstructor/twopaco -f 20 -k 5 example/small.fa -m example/small.gfa -l gfa1
+
+Run script on two similar gfa file (same k value):
+1) cat gencode_gfa1.gfa | grep -v '[.fa]$' | grep '^[S]'> t1
+2) cat new_gencode.gfa | grep -v '[.fa]$' | grep '^[S]'> t2
+3) awk '{print $3}' t1 > t1_1
+4) awk '{print $3}' t2 > t2_1
+
+
+Run comparison script :
+5.) python3 compare_gfa.py t1_1 t2_1
